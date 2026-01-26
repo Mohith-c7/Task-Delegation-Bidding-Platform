@@ -1,7 +1,8 @@
 # Task-Delegation-Bidding-Platform
  Task-sharing marketplace within an organization
 
-#SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
+# SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
+
 Project Title: Task Delegation and Bidding Platform for Software Teams
 #1. Introduction
 1.1 Purpose
