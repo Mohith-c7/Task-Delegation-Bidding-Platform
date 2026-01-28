@@ -70,18 +70,16 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600 mt-1">Browse and manage tasks</p>
           </div>
-          {(user?.role === 'task_owner' || user?.role === 'manager') && (
-            <button
-              onClick={() => setCreateModalOpen(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
-            >
-              + Create Task
-            </button>
-          )}
+          <button
+            onClick={() => setCreateModalOpen(true)}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
+          >
+            + Create Task
+          </button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
             <h3 className="text-gray-500 text-sm font-medium">Total Tasks</h3>
             <p className="text-3xl font-bold text-blue-600 mt-2">{tasks.length}</p>
@@ -93,14 +91,10 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Your Role</h3>
-            <p className="text-xl font-bold text-purple-600 mt-2 capitalize">
-              {user?.role.replace('_', ' ')}
+            <h3 className="text-gray-500 text-sm font-medium">Active</h3>
+            <p className="text-3xl font-bold text-purple-600 mt-2">
+              {tasks.filter(t => t.status === 'assigned' || t.status === 'in_progress').length}
             </p>
-          </div>
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Status</h3>
-            <p className="text-xl font-bold text-indigo-600 mt-2">Active</p>
           </div>
         </div>
 
@@ -136,7 +130,7 @@ export default function Dashboard() {
         ) : tasks.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
             <p className="text-gray-500 text-lg">No {filter} tasks found.</p>
-            {filter === 'open' && (user?.role === 'task_owner' || user?.role === 'manager') && (
+            {filter === 'open' && (
               <button
                 onClick={() => setCreateModalOpen(true)}
                 className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"

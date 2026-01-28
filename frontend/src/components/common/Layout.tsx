@@ -54,7 +54,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                <p className="text-xs text-gray-500 capitalize">{user?.role.replace('_', ' ')}</p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
               </div>
               <button
                 onClick={handleLogout}

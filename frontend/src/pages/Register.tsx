@@ -9,7 +9,6 @@ export default function Register() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'task_owner',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -48,9 +47,9 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 py-12 px-4">
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
         <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">
-          Create Account
+          Join TaskHub
         </h1>
-        <p className="text-center text-gray-600 mb-6">Join the task delegation platform</p>
+        <p className="text-center text-gray-600 mb-6">Create your account and start collaborating</p>
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -89,23 +88,6 @@ export default function Register() {
               required
               disabled={loading}
             />
-          </div>
-
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
-            <select
-              id="role"
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={loading}
-            >
-              <option value="task_owner">Task Owner</option>
-              <option value="bidder">Bidder</option>
-              <option value="manager">Manager</option>
-            </select>
           </div>
 
           <div>
@@ -155,6 +137,12 @@ export default function Register() {
             Sign In
           </Link>
         </p>
+
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <p className="text-sm text-gray-700 text-center">
+            <span className="font-semibold">TaskHub</span> - A unified platform where everyone can post tasks and help each other
+          </p>
+        </div>
       </div>
     </div>
   )
