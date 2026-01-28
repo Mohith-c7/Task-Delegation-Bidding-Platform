@@ -43,7 +43,6 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 		Name:         req.Name,
 		Email:        req.Email,
 		PasswordHash: hashedPassword,
-		Role:         req.Role,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
@@ -51,12 +50,12 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 	}
 
 	// Generate tokens
-	accessToken, err := utils.GenerateToken(user.ID, user.Email, string(user.Role), s.config.JWTSecret, s.config.JWTExpiry)
+	accessToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.JWTExpiry)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := utils.GenerateToken(user.ID, user.Email, string(user.Role), s.config.JWTSecret, s.config.RefreshTokenExpiry)
+	refreshToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.RefreshTokenExpiry)
 	if err != nil {
 		return nil, err
 	}
@@ -81,12 +80,12 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*mod
 	}
 
 	// Generate tokens
-	accessToken, err := utils.GenerateToken(user.ID, user.Email, string(user.Role), s.config.JWTSecret, s.config.JWTExpiry)
+	accessToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.JWTExpiry)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := utils.GenerateToken(user.ID, user.Email, string(user.Role), s.config.JWTSecret, s.config.RefreshTokenExpiry)
+	refreshToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.RefreshTokenExpiry)
 	if err != nil {
 		return nil, err
 	}

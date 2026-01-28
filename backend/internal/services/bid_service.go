@@ -70,7 +70,7 @@ func (s *BidService) GetMyBids(ctx context.Context, bidderID string) ([]*models.
 	return s.bidRepo.GetByBidderID(ctx, bidderID)
 }
 
-func (s *BidService) ApproveBid(ctx context.Context, bidID string, managerID string) error {
+func (s *BidService) ApproveBid(ctx context.Context, bidID string, approverID string) error {
 	// Get bid
 	bid, err := s.bidRepo.GetByID(ctx, bidID)
 	if err != nil {
@@ -88,13 +88,13 @@ func (s *BidService) ApproveBid(ctx context.Context, bidID string, managerID str
 		return err
 	}
 
-	// Check if manager is the task owner
-	if task.OwnerID != managerID {
+	// Check if approver is the task owner
+	if task.OwnerID != approverID {
 		return errors.New("only task owner can approve bids")
 	}
 
 	// Update bid status
-	if err := s.bidRepo.UpdateStatus(ctx, bidID, models.BidApproved, &managerID); err != nil {
+	if err := s.bidRepo.UpdateStatus(ctx, bidID, models.BidApproved, &approverID); err != nil {
 		return err
 	}
 
@@ -108,7 +108,7 @@ func (s *BidService) ApproveBid(ctx context.Context, bidID string, managerID str
 	return nil
 }
 
-func (s *BidService) RejectBid(ctx context.Context, bidID string, managerID string) error {
+func (s *BidService) RejectBid(ctx context.Context, bidID string, approverID string) error {
 	// Get bid
 	bid, err := s.bidRepo.GetByID(ctx, bidID)
 	if err != nil {
@@ -126,11 +126,11 @@ func (s *BidService) RejectBid(ctx context.Context, bidID string, managerID stri
 		return err
 	}
 
-	// Check if manager is the task owner
-	if task.OwnerID != managerID {
+	// Check if approver is the task owner
+	if task.OwnerID != approverID {
 		return errors.New("only task owner can reject bids")
 	}
 
 	// Update bid status
-	return s.bidRepo.UpdateStatus(ctx, bidID, models.BidRejected, &managerID)
+	return s.bidRepo.UpdateStatus(ctx, bidID, models.BidRejected, &approverID)
 }

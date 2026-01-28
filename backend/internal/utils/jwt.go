@@ -10,7 +10,6 @@ import (
 type Claims struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
-	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -19,7 +18,6 @@ func GenerateToken(userID, email, role, secret string, expiry time.Duration) (st
 	claims := Claims{
 		UserID: userID,
 		Email:  email,
-		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
