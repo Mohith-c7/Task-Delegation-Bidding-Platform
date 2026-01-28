@@ -1,8 +1,11 @@
 package config
 
 import (
+	"log"
 	"os"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -17,15 +20,23 @@ type Config struct {
 }
 
 func Load() *Config {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
+	jwtExpiry, _ := time.ParseDuration(getEnv("JWT_EXPIRY", "15m"))
+	refreshExpiry, _ := time.ParseDuration(getEnv("REFRESH_TOKEN_EXPIRY", "168h"))
+
 	return &Config{
-		Port:                getEnv("PORT", "8080"),
-		DatabaseURL:         getEnv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/taskdb?sslmode=disable"),
-		RedisURL:            getEnv("REDIS_URL", "redis://localhost:6379"),
-		JWTSecret:           getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
-		JWTExpiry:           parseDuration(getEnv("JWT_EXPIRY", "15m")),
-		RefreshTokenExpiry:  parseDuration(getEnv("REFRESH_TOKEN_EXPIRY", "168h")),
-		AllowedOrigins:      getEnv("ALLOWED_ORIGINS", "http://localhost:5173"),
-		Environment:         getEnv("ENVIRONMENT", "development"),
+		Port:               getEnv("PORT", "8080"),
+		DatabaseURL:        getEnv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/taskdb?sslmode=disable"),
+		RedisURL:           getEnv("REDIS_URL", "redis://localhost:6379"),
+		JWTSecret:          getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
+		JWTExpiry:          jwtExpiry,
+		RefreshTokenExpiry: refreshExpiry,
+		AllowedOrigins:     getEnv("ALLOWED_ORIGINS", "http://localhost:5173"),
+		Environment:        getEnv("ENVIRONMENT", "development"),
 	}
 }
 
@@ -34,12 +45,4 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func parseDuration(s string) time.Duration {
-	d, err := time.ParseDuration(s)
-	if err != nil {
-		return 15 * time.Minute
-	}
-	return d
 }
