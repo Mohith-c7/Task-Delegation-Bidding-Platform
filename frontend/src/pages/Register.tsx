@@ -49,7 +49,7 @@ export default function Register() {
         <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">
           Join TaskHub
         </h1>
-        <p className="text-center text-gray-600 mb-6">Create your account and start collaborating</p>
+        <p className="text-center text-gray-600 mb-6">Create tasks, help others, collaborate!</p>
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -137,12 +137,6 @@ export default function Register() {
             Sign In
           </Link>
         </p>
-
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-gray-700 text-center">
-            <span className="font-semibold">TaskHub</span> - A unified platform where everyone can post tasks and help each other
-          </p>
-        </div>
       </div>
     </div>
   )

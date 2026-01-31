@@ -1,4 +1,4 @@
--- Add role column back to users table
+-- Add role column back
 ALTER TABLE users ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'task_owner' CHECK (role IN ('task_owner', 'bidder', 'manager', 'admin'));
 
 -- Recreate role index
