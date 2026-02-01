@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/yourusername/task-delegation-platform/internal/config"
 	"github.com/yourusername/task-delegation-platform/internal/handlers"
 	"github.com/yourusername/task-delegation-platform/internal/middleware"
@@ -31,6 +32,29 @@ func main() {
 	}
 	log.Println("✓ Connected to PostgreSQL")
 
+	// Connect to Redis
+	redisAddr := cfg.RedisURL
+	// Remove redis:// prefix if present
+	if len(redisAddr) > 8 && redisAddr[:8] == "redis://" {
+		redisAddr = redisAddr[8:]
+	}
+	
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	defer redisClient.Close()
+
+	// Test Redis connection
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		log.Printf("⚠ Warning: Unable to connect to Redis: %v\n", err)
+		log.Println("  OTP functionality will be disabled")
+		redisClient = nil
+	} else {
+		log.Println("✓ Connected to Redis")
+	}
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(dbPool)
 	taskRepo := repository.NewTaskRepository(dbPool)
@@ -41,10 +65,30 @@ func main() {
 	taskService := services.NewTaskService(taskRepo)
 	bidService := services.NewBidService(bidRepo, taskRepo)
 
+	// Initialize email and OTP services if Redis is available
+	var emailService *services.EmailService
+	var otpService *services.OTPService
+	
+	if redisClient != nil {
+		emailService = services.NewEmailService(cfg)
+		otpService = services.NewOTPService(redisClient, emailService)
+		
+		// Set services in auth service
+		authService.SetEmailService(emailService)
+		authService.SetOTPService(otpService)
+		
+		log.Println("✓ Email and OTP services initialized")
+	}
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	taskHandler := handlers.NewTaskHandler(taskService)
 	bidHandler := handlers.NewBidHandler(bidService)
+	
+	var otpHandler *handlers.OTPHandler
+	if otpService != nil {
+		otpHandler = handlers.NewOTPHandler(otpService, authService)
+	}
 
 	// Setup Gin
 	if cfg.Environment == "production" {
@@ -71,6 +115,16 @@ func main() {
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
+			auth.POST("/verify-email", authHandler.VerifyEmailAndRegister)
+			auth.POST("/forgot-password", authHandler.ForgotPassword)
+			auth.POST("/reset-password", authHandler.ResetPassword)
+			
+			// OTP routes (if available)
+			if otpHandler != nil {
+				auth.POST("/send-otp", otpHandler.SendOTP)
+				auth.POST("/verify-otp", otpHandler.VerifyOTP)
+				auth.POST("/resend-otp", otpHandler.ResendOTP)
+			}
 		}
 
 		// Protected routes
