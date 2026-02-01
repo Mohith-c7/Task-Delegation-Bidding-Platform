@@ -52,8 +52,8 @@ func (h *OTPHandler) SendOTP(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, gin.H{
-		"message": "OTP sent successfully to " + req.Email,
+	utils.SuccessResponse(c, http.StatusOK, "OTP sent successfully", gin.H{
+		"email": req.Email,
 	})
 }
 
@@ -104,7 +104,7 @@ func (h *OTPHandler) VerifyOTP(c *gin.Context) {
 		response.User = authResp.User
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, response)
+	utils.SuccessResponse(c, http.StatusOK, "OTP verified successfully", response)
 }
 
 // ResendOTP resends OTP
@@ -135,7 +135,7 @@ func (h *OTPHandler) ResendOTP(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, gin.H{
-		"message": "OTP resent successfully",
+	utils.SuccessResponse(c, http.StatusOK, "OTP resent successfully", gin.H{
+		"email": req.Email,
 	})
 }
