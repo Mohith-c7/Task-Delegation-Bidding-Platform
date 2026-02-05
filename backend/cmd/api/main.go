@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/yourusername/task-delegation-platform/internal/config"
+	"github.com/yourusername/task-delegation-platform/internal/database"
 	"github.com/yourusername/task-delegation-platform/internal/handlers"
 	"github.com/yourusername/task-delegation-platform/internal/middleware"
 	"github.com/yourusername/task-delegation-platform/internal/repository"
@@ -32,18 +33,23 @@ func main() {
 	}
 	log.Println("✓ Connected to PostgreSQL")
 
-	// Connect to Redis
-	redisAddr := cfg.RedisURL
-	// Remove redis:// prefix if present
-	if len(redisAddr) > 8 && redisAddr[:8] == "redis://" {
-		redisAddr = redisAddr[8:]
+	// Run auto-migrations
+	if err := database.RunMigrations(dbPool); err != nil {
+		log.Fatal("Failed to run migrations:", err)
 	}
-	
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
+
+	// Connect to Redis (parse full URL with auth)
+	redisOpts, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		log.Printf("⚠ Warning: Unable to parse Redis URL: %v\n", err)
+		log.Println("  Falling back to localhost:6379")
+		redisOpts = &redis.Options{
+			Addr: "localhost:6379",
+			DB:   0,
+		}
+	}
+
+	redisClient := redis.NewClient(redisOpts)
 	defer redisClient.Close()
 
 	// Test Redis connection
@@ -68,15 +74,15 @@ func main() {
 	// Initialize email and OTP services if Redis is available
 	var emailService *services.EmailService
 	var otpService *services.OTPService
-	
+
 	if redisClient != nil {
 		emailService = services.NewEmailService(cfg)
 		otpService = services.NewOTPService(redisClient, emailService)
-		
+
 		// Set services in auth service
 		authService.SetEmailService(emailService)
 		authService.SetOTPService(otpService)
-		
+
 		log.Println("✓ Email and OTP services initialized")
 	}
 
@@ -84,7 +90,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService)
 	taskHandler := handlers.NewTaskHandler(taskService)
 	bidHandler := handlers.NewBidHandler(bidService)
-	
+
 	var otpHandler *handlers.OTPHandler
 	if otpService != nil {
 		otpHandler = handlers.NewOTPHandler(otpService, authService)
@@ -118,7 +124,7 @@ func main() {
 			auth.POST("/verify-email", authHandler.VerifyEmailAndRegister)
 			auth.POST("/forgot-password", authHandler.ForgotPassword)
 			auth.POST("/reset-password", authHandler.ResetPassword)
-			
+
 			// OTP routes (if available)
 			if otpHandler != nil {
 				auth.POST("/send-otp", otpHandler.SendOTP)
