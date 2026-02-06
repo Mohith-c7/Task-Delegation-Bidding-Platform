@@ -72,5 +72,4 @@ Communication Interface: Email or in-app notifications.
 Integration with Jira/GitHub, Mobile Application, Analytics Dashboard.
 #9. Conclusion
 This system provides an efficient solution for handling employee unavailability in software teams by
-introducing a transparent and structured task delegation process. It ensures workflow continuity,
-better workload distribution, and improved project reliability.
+introducing a transparent and structured task delegation process.
