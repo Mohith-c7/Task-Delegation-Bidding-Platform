@@ -68,7 +68,7 @@ Bids Table: Bid_ID, Task_ID, Bidder_ID, Message, ETA, Status.
 #7. External Interface Requirements
 User Interface: Dashboards, Task Listings, Bid Forms, Approval Panels.
 Communication Interface: Email or in-app notifications.
-#8. Future Enhancements
+
 Integration with Jira/GitHub, Mobile Application, Analytics Dashboard.
 #9. Conclusion
 This system provides an efficient solution for handling employee unavailability in software teams by
