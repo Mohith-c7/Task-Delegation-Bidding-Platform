@@ -5,6 +5,8 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import MyTasks from './pages/MyTasks'
 import MyBids from './pages/MyBids'
+import Analytics from './pages/Analytics'
+import MyAnalytics from './pages/MyAnalytics'
 import { useAuthStore } from './store/authStore'
 
 const queryClient = new QueryClient({
@@ -50,6 +52,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <MyBids />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-analytics"
+              element={
+                <ProtectedRoute>
+                  <MyAnalytics />
                 </ProtectedRoute>
               }
             />

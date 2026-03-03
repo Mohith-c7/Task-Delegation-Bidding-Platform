@@ -20,6 +20,8 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/my-tasks', label: 'My Tasks', icon: '📝' },
     { path: '/my-bids', label: 'My Bids', icon: '💰' },
+    { path: '/analytics', label: 'Analytics', icon: '📈' },
+    { path: '/my-analytics', label: 'My Performance', icon: '🎯' },
   ]
 
   return (

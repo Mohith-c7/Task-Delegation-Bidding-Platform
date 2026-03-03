@@ -50,6 +50,7 @@ FR7: Progress Tracking – Bidder updates progress; Manager monitors status.
 FR8: Task Completion – Bidder marks completion; Manager reviews closure.
 FR9: Notifications – Users receive updates on task and bid activities.
 FR10: Admin Control – Admin manages users and roles.
+FR11: Analytics Dashboard – Comprehensive metrics, completion rates, and bidder performance tracking.
 #4. Non-Functional Requirements
 Performance: Supports 500 concurrent users with response time under 3 seconds.
 Security: Secure login and role-based authorization.

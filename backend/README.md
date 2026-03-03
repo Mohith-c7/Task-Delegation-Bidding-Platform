@@ -46,6 +46,10 @@ make migrate-down # Rollback migrations
 - `PATCH /api/v1/bids/:id/approve` - Approve bid
 - `PATCH /api/v1/bids/:id/reject` - Reject bid
 
+### Analytics
+- `GET /api/v1/analytics/dashboard` - Get platform-wide analytics
+- `GET /api/v1/analytics/me` - Get personal performance metrics
+
 ## Tech Stack
 
 - **Framework:** Gin

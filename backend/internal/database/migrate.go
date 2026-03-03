@@ -61,7 +61,8 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		`CREATE INDEX IF NOT EXISTS idx_bids_bidder ON bids(bidder_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_bids_status ON bids(status);`,
 
-		// 000004: Remove role column (make it optional - already handled above with nullable role)
+		// 000004: Remove role column
+		`ALTER TABLE users DROP COLUMN IF EXISTS role;`,
 		`DROP INDEX IF EXISTS idx_users_role;`,
 
 		// 000005: Add email verification
@@ -78,6 +79,12 @@ func RunMigrations(pool *pgxpool.Pool) error {
 			END IF;
 		END $$;`,
 		`CREATE INDEX IF NOT EXISTS idx_users_email_verified ON users(email_verified);`,
+
+		// Insert test user (john@example.com / password123)
+		// Password hash for "password123" using bcrypt
+		`INSERT INTO users (name, email, password_hash, email_verified, verified_at)
+		VALUES ('John Doe', 'john@example.com', '$2a$10$YZcA2Bp65W2GThWSNniY3e9BfpVgjHnxnea08Y9KkH5UNmfeFUkiq', true, NOW())
+		ON CONFLICT (email) DO NOTHING;`,
 	}
 
 	for i, migration := range migrations {
@@ -89,5 +96,6 @@ func RunMigrations(pool *pgxpool.Pool) error {
 	}
 
 	log.Println("✓ Database migrations completed")
+	log.Println("✓ Test user available: john@example.com / password123")
 	return nil
 }

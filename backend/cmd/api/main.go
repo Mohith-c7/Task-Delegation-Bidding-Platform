@@ -65,11 +65,13 @@ func main() {
 	userRepo := repository.NewUserRepository(dbPool)
 	taskRepo := repository.NewTaskRepository(dbPool)
 	bidRepo := repository.NewBidRepository(dbPool)
+	analyticsRepo := repository.NewAnalyticsRepository(dbPool)
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, cfg)
 	taskService := services.NewTaskService(taskRepo)
 	bidService := services.NewBidService(bidRepo, taskRepo)
+	analyticsService := services.NewAnalyticsService(analyticsRepo)
 
 	// Initialize email and OTP services if Redis is available
 	var emailService *services.EmailService
@@ -90,6 +92,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService)
 	taskHandler := handlers.NewTaskHandler(taskService)
 	bidHandler := handlers.NewBidHandler(bidService)
+	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
 
 	var otpHandler *handlers.OTPHandler
 	if otpService != nil {
@@ -153,6 +156,10 @@ func main() {
 			protected.GET("/bids/my", bidHandler.GetMyBids)
 			protected.PATCH("/bids/:id/approve", bidHandler.ApproveBid)
 			protected.PATCH("/bids/:id/reject", bidHandler.RejectBid)
+
+			// Analytics routes
+			protected.GET("/analytics/dashboard", analyticsHandler.GetDashboardAnalytics)
+			protected.GET("/analytics/me", analyticsHandler.GetUserAnalytics)
 		}
 	}
 
