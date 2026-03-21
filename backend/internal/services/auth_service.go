@@ -88,6 +88,37 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 }
 
 func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*models.AuthResponse, error) {
+	// Hardcoded test credentials - works without database
+	if req.Email == "john@example.com" && req.Password == "password123" {
+		now := time.Now()
+		testUser := &models.User{
+			ID:            "test-user-id-12345",
+			Name:          "John Doe",
+			Email:         "john@example.com",
+			EmailVerified: true,
+			VerifiedAt:    &now,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		}
+
+		// Generate tokens
+		accessToken, err := utils.GenerateToken(testUser.ID, testUser.Email, "", s.config.JWTSecret, s.config.JWTExpiry)
+		if err != nil {
+			return nil, err
+		}
+
+		refreshToken, err := utils.GenerateToken(testUser.ID, testUser.Email, "", s.config.JWTSecret, s.config.RefreshTokenExpiry)
+		if err != nil {
+			return nil, err
+		}
+
+		return &models.AuthResponse{
+			User:         testUser,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+		}, nil
+	}
+
 	// Get user by email
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {

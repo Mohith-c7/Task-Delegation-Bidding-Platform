@@ -29,9 +29,9 @@ func main() {
 
 	// Test database connection
 	if err := dbPool.Ping(context.Background()); err != nil {
-		log.Fatal("Unable to ping database:", err)
+		log.Fatal("Unable to connect to database:", err)
 	}
-	log.Println("✓ Connected to PostgreSQL")
+	log.Println("✓ Connected to PostgreSQL (Neon)")
 
 	// Run auto-migrations
 	if err := database.RunMigrations(dbPool); err != nil {
@@ -54,12 +54,9 @@ func main() {
 
 	// Test Redis connection
 	if err := redisClient.Ping(context.Background()).Err(); err != nil {
-		log.Printf("⚠ Warning: Unable to connect to Redis: %v\n", err)
-		log.Println("  OTP functionality will be disabled")
-		redisClient = nil
-	} else {
-		log.Println("✓ Connected to Redis")
+		log.Fatal("Unable to connect to Redis (Upstash):", err)
 	}
+	log.Println("✓ Connected to Redis (Upstash)")
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(dbPool)
