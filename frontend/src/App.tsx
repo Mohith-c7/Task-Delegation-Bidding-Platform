@@ -8,13 +8,11 @@ import MyBids from './pages/MyBids'
 import Analytics from './pages/Analytics'
 import MyAnalytics from './pages/MyAnalytics'
 import { useAuthStore } from './store/authStore'
+import { ToastProvider } from './design-system'
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
+    queries: { refetchOnWindowFocus: false, retry: 1 },
   },
 })
 
@@ -26,54 +24,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
+      <ToastProvider>
+        <Router>
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/my-tasks"
-              element={
-                <ProtectedRoute>
-                  <MyTasks />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/my-bids"
-              element={
-                <ProtectedRoute>
-                  <MyBids />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <Analytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/my-analytics"
-              element={
-                <ProtectedRoute>
-                  <MyAnalytics />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/dashboard"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/my-tasks"     element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
+            <Route path="/my-bids"      element={<ProtectedRoute><MyBids /></ProtectedRoute>} />
+            <Route path="/analytics"    element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/my-analytics" element={<ProtectedRoute><MyAnalytics /></ProtectedRoute>} />
           </Routes>
-        </div>
-      </Router>
+        </Router>
+      </ToastProvider>
     </QueryClientProvider>
   )
 }
