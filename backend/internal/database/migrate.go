@@ -85,6 +85,143 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		`INSERT INTO users (name, email, password_hash, email_verified, verified_at)
 		VALUES ('John Doe', 'john@example.com', '$2a$10$YZcA2Bp65W2GThWSNniY3e9BfpVgjHnxnea08Y9KkH5UNmfeFUkiq', true, NOW())
 		ON CONFLICT (email) DO NOTHING;`,
+
+		// 000007: Create organizations table
+		`CREATE TABLE IF NOT EXISTS organizations (
+			id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name             TEXT NOT NULL,
+			slug             TEXT NOT NULL UNIQUE,
+			logo_url         TEXT,
+			onboarding_status TEXT NOT NULL DEFAULT 'incomplete' CHECK (onboarding_status IN ('incomplete', 'complete', 'skipped')),
+			onboarding_step  INT NOT NULL DEFAULT 1,
+			created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);`,
+
+		// 000008: Create memberships table
+		`CREATE TABLE IF NOT EXISTS memberships (
+			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			org_id     UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+			user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			role       TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('org_admin', 'manager', 'employee')),
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE (org_id, user_id)
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_memberships_org_id  ON memberships(org_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_memberships_user_id ON memberships(user_id);`,
+
+		// 000009: Create invitations table
+		`CREATE TABLE IF NOT EXISTS invitations (
+			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			org_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+			invited_by  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			email       TEXT NOT NULL,
+			role        TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('org_admin', 'manager', 'employee')),
+			token       TEXT NOT NULL UNIQUE,
+			status      TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')),
+			expires_at  TIMESTAMPTZ NOT NULL,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_invitations_token  ON invitations(token);`,
+		`CREATE INDEX IF NOT EXISTS idx_invitations_org_id ON invitations(org_id);`,
+
+		// 000010: Create subscriptions table
+		`CREATE TABLE IF NOT EXISTS subscriptions (
+			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			org_id     UUID NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
+			tier       TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'pro', 'enterprise')),
+			started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			renews_at  TIMESTAMPTZ,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+
+		// 000011: Create notifications table
+		`CREATE TABLE IF NOT EXISTS notifications (
+			id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			org_id        UUID REFERENCES organizations(id) ON DELETE CASCADE,
+			type          TEXT NOT NULL,
+			title         TEXT NOT NULL,
+			body          TEXT NOT NULL DEFAULT '',
+			resource_type TEXT,
+			resource_id   UUID,
+			is_read       BOOLEAN NOT NULL DEFAULT FALSE,
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read);`,
+		`CREATE INDEX IF NOT EXISTS idx_notifications_created_at  ON notifications(created_at DESC);`,
+
+		// 000012: Create activity_feed table
+		`CREATE TABLE IF NOT EXISTS activity_feed (
+			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			task_id    UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+			org_id     UUID REFERENCES organizations(id) ON DELETE CASCADE,
+			actor_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+			event_type TEXT NOT NULL,
+			field_name TEXT,
+			old_value  TEXT,
+			new_value  TEXT,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_activity_feed_task ON activity_feed(task_id, created_at DESC);`,
+
+		// 000013: Create comments table
+		`CREATE TABLE IF NOT EXISTS comments (
+			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			task_id    UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+			org_id     UUID REFERENCES organizations(id) ON DELETE CASCADE,
+			author_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			body       TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id, created_at ASC);`,
+
+		// 000014: Create checklist_items table
+		`CREATE TABLE IF NOT EXISTS checklist_items (
+			id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			task_id    UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+			title      TEXT NOT NULL,
+			is_done    BOOLEAN NOT NULL DEFAULT FALSE,
+			position   INT NOT NULL DEFAULT 0,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_checklist_items_task ON checklist_items(task_id, position ASC);`,
+
+		// 000015: Create audit_log table
+		`CREATE TABLE IF NOT EXISTS audit_log (
+			id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			org_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+			actor_id    UUID REFERENCES users(id) ON DELETE SET NULL,
+			action      TEXT NOT NULL,
+			target_id   UUID,
+			target_type TEXT,
+			metadata    JSONB,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_log_org ON audit_log(org_id, created_at DESC);`,
+
+		// 000016: Alter existing tables — add org_id to tasks, search vector, extend users
+		`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES organizations(id) ON DELETE CASCADE;`,
+		`CREATE INDEX IF NOT EXISTS idx_tasks_org_id ON tasks(org_id);`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name='tasks' AND column_name='search_vector'
+			) THEN
+				ALTER TABLE tasks ADD COLUMN search_vector tsvector
+					GENERATED ALWAYS AS (
+						to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, ''))
+					) STORED;
+			END IF;
+		END $$;`,
+		`CREATE INDEX IF NOT EXISTS idx_tasks_search ON tasks USING GIN(search_vector);`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS skills      TEXT[]  DEFAULT '{}';`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url  TEXT;`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS notif_prefs JSONB   DEFAULT '{}';`,
 	}
 
 	for i, migration := range migrations {

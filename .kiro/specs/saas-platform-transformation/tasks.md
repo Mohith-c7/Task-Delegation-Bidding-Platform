@@ -70,8 +70,37 @@ Incremental implementation from foundational design system through multi-tenant 
     - _Requirements: 11.9, 11.10, 11.11, 11.12_
 
 
-- [ ] 3. Database migrations
-  - [ ] 3.1 Create migration `000007_create_organizations.up.sql`
+- [x] 3. Database migrations
+  - [x] 3.1 Create migration `000007_create_organizations.up.sql`
+  - [x] 3.2 Create migration `000008_create_memberships.up.sql`
+  - [x] 3.3 Create migration `000009_create_invitations.up.sql`
+  - [x] 3.4 Create migration `000010_create_subscriptions.up.sql`
+  - [x] 3.5 Create migration `000011_create_notifications.up.sql`
+  - [x] 3.6 Create migration `000012_create_activity_feed.up.sql`
+  - [x] 3.7 Create migration `000013_create_comments.up.sql`
+  - [x] 3.8 Create migration `000014_create_checklist_items.up.sql`
+  - [x] 3.9 Create migration `000015_create_audit_log.up.sql`
+  - [x] 3.10 Create migration `000016_alter_existing_tables.up.sql`
+  - [x] 3.11 Update `backend/internal/database/migrate.go`
+
+- [x] 4. Go models and JWT extension
+  - [x] 4.1 Create `backend/internal/models/org.go`
+  - [x] 4.2 Create notification, activity, comment, checklist, audit models
+  - [x] 4.3 Extend `backend/internal/utils/jwt.go` with org/role claims
+
+- [x] 5. RBAC middleware and auth middleware extension
+  - [x] 5.1 Create `backend/internal/middleware/rbac.go`
+  - [x] 5.2 Implement `RequireRole` middleware helper
+  - [x] 5.3 Create `backend/internal/middleware/ratelimit.go`
+  - [x] 5.4 Update `backend/internal/middleware/auth.go`
+
+- [x] 6. Checkpoint — ensure migrations apply cleanly and middleware compiles
+
+- [x] 7. Organization service and handlers
+  - [x] 7.1 Create `backend/internal/repository/org_repo.go`
+  - [x] 7.2 Create `backend/internal/services/org_service.go`
+  - [x] 7.3 Create `backend/internal/handlers/org.go`
+  - [x] 7.4 Register org routes in `backend/cmd/api/main.go`
     - `organizations` table: id (UUID PK), name, slug (UNIQUE), logo_url, onboarding_status (CHECK), onboarding_step, created_at, updated_at
     - Index on slug; corresponding `.down.sql`
     - _Requirements: 1.1_

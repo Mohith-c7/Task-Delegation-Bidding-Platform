@@ -6,6 +6,15 @@ import Layout from '../components/common/Layout'
 import TaskCard from '../components/tasks/TaskCard'
 import CreateTaskModal from '../components/tasks/CreateTaskModal'
 import ViewBidsModal from '../components/bids/ViewBidsModal'
+import { Button, SkeletonCard, EmptyState } from '../design-system'
+import { Plus, ClipboardList, CheckCircle2, Clock3, Circle } from 'lucide-react'
+
+const STATUS_SECTIONS = [
+  { key: 'open',        label: 'Open',        color: 'text-success',  dot: 'bg-success' },
+  { key: 'assigned',    label: 'Assigned',    color: 'text-warning',  dot: 'bg-warning' },
+  { key: 'in_progress', label: 'In Progress', color: 'text-primary',  dot: 'bg-primary' },
+  { key: 'completed',   label: 'Completed',   color: 'text-secondary', dot: 'bg-secondary' },
+] as const
 
 export default function MyTasks() {
   const navigate = useNavigate()
@@ -17,10 +26,7 @@ export default function MyTasks() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   useEffect(() => {
-    if (!user) {
-      navigate('/')
-      return
-    }
+    if (!user) { navigate('/'); return }
     loadTasks()
   }, [user, navigate])
 
@@ -36,121 +42,91 @@ export default function MyTasks() {
     }
   }
 
-  const handleViewBids = (task: Task) => {
-    setSelectedTask(task)
-    setViewBidsModalOpen(true)
-  }
-
+  const handleViewBids = (task: Task) => { setSelectedTask(task); setViewBidsModalOpen(true) }
   const handleDeleteTask = async (task: Task) => {
-    if (!confirm('Are you sure you want to delete this task?')) return
-
-    try {
-      await taskService.deleteTask(task.id)
-      loadTasks()
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete task')
-    }
+    if (!confirm('Delete this task?')) return
+    try { await taskService.deleteTask(task.id); loadTasks() }
+    catch (e: any) { alert(e.response?.data?.error || 'Failed to delete task') }
   }
 
-  const tasksByStatus = {
-    open: tasks.filter(t => t.status === 'open'),
-    assigned: tasks.filter(t => t.status === 'assigned'),
-    in_progress: tasks.filter(t => t.status === 'in_progress'),
-    completed: tasks.filter(t => t.status === 'completed'),
-  }
+  const grouped = STATUS_SECTIONS.reduce((acc, s) => {
+    acc[s.key] = tasks.filter(t => t.status === s.key)
+    return acc
+  }, {} as Record<string, Task[]>)
+
+  const stats = [
+    { label: 'Total', value: tasks.length, icon: ClipboardList, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Open', value: grouped.open?.length ?? 0, icon: Circle, color: 'text-success', bg: 'bg-success/10' },
+    { label: 'Active', value: (grouped.assigned?.length ?? 0) + (grouped.in_progress?.length ?? 0), icon: Clock3, color: 'text-warning', bg: 'bg-warning/10' },
+    { label: 'Done', value: grouped.completed?.length ?? 0, icon: CheckCircle2, color: 'text-secondary', bg: 'bg-secondary/10' },
+  ]
 
   return (
     <Layout>
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">My Tasks</h1>
-            <p className="text-gray-600 mt-1">Tasks you've created</p>
+            <h1 className="text-2xl font-bold text-text-primary">My Tasks</h1>
+            <p className="text-sm text-text-secondary mt-0.5">Tasks you've posted for your team</p>
           </div>
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
-          >
-            + Create Task
-          </button>
+          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setCreateModalOpen(true)}>
+            Create Task
+          </Button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Total</h3>
-            <p className="text-3xl font-bold text-blue-600 mt-2">{tasks.length}</p>
-          </div>
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Open</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">{tasksByStatus.open.length}</p>
-          </div>
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">In Progress</h3>
-            <p className="text-3xl font-bold text-orange-600 mt-2">
-              {tasksByStatus.assigned.length + tasksByStatus.in_progress.length}
-            </p>
-          </div>
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Completed</h3>
-            <p className="text-3xl font-bold text-purple-600 mt-2">{tasksByStatus.completed.length}</p>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {stats.map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className="bg-surface-2 rounded-2xl p-4 border border-border flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+                <Icon size={18} className={color} />
+              </div>
+              <div>
+                <p className="text-xs text-text-tertiary font-medium">{label}</p>
+                <p className={`text-xl font-bold ${color}`}>{value}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-gray-500 mt-4">Loading your tasks...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : tasks.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <p className="text-gray-500 text-lg mb-4">You haven't created any tasks yet.</p>
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            Create Your First Task
-          </button>
-        </div>
+        <EmptyState
+          icon={<ClipboardList size={40} />}
+          title="No tasks yet"
+          description="Create your first task and let your team bid on it."
+          action={{ label: 'Create Task', onClick: () => setCreateModalOpen(true) }}
+        />
       ) : (
-        <div className="space-y-8">
-          {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
-            statusTasks.length > 0 && (
-              <div key={status}>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 capitalize">
-                  {status.replace('_', ' ')} ({statusTasks.length})
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {statusTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      isOwner={true}
-                      onViewBids={handleViewBids}
-                      onDelete={handleDeleteTask}
-                    />
+        <div className="space-y-10">
+          {STATUS_SECTIONS.map(({ key, label, color, dot }) => {
+            const sectionTasks = grouped[key] ?? []
+            if (sectionTasks.length === 0) return null
+            return (
+              <div key={key}>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className={`w-2 h-2 rounded-full ${dot}`} />
+                  <h2 className={`text-sm font-bold uppercase tracking-wider ${color}`}>{label}</h2>
+                  <span className="text-xs text-text-tertiary bg-surface-3 px-2 py-0.5 rounded-full">{sectionTasks.length}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {sectionTasks.map((task) => (
+                    <TaskCard key={task.id} task={task} isOwner onViewBids={handleViewBids} onDelete={handleDeleteTask} />
                   ))}
                 </div>
               </div>
             )
-          ))}
+          })}
         </div>
       )}
 
-      <CreateTaskModal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        onSuccess={loadTasks}
-      />
-
+      <CreateTaskModal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} onSuccess={loadTasks} />
       <ViewBidsModal
-        isOpen={viewBidsModalOpen}
-        task={selectedTask}
-        onClose={() => {
-          setViewBidsModalOpen(false)
-          setSelectedTask(null)
-        }}
+        isOpen={viewBidsModalOpen} task={selectedTask}
+        onClose={() => { setViewBidsModalOpen(false); setSelectedTask(null) }}
         onBidApproved={loadTasks}
       />
     </Layout>

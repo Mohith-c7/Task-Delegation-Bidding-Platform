@@ -12,6 +12,7 @@ import (
 	"github.com/yourusername/task-delegation-platform/internal/database"
 	"github.com/yourusername/task-delegation-platform/internal/handlers"
 	"github.com/yourusername/task-delegation-platform/internal/middleware"
+	"github.com/yourusername/task-delegation-platform/internal/models"
 	"github.com/yourusername/task-delegation-platform/internal/repository"
 	"github.com/yourusername/task-delegation-platform/internal/services"
 )
@@ -63,12 +64,14 @@ func main() {
 	taskRepo := repository.NewTaskRepository(dbPool)
 	bidRepo := repository.NewBidRepository(dbPool)
 	analyticsRepo := repository.NewAnalyticsRepository(dbPool)
+	orgRepo := repository.NewOrgRepository(dbPool)
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, cfg)
 	taskService := services.NewTaskService(taskRepo)
 	bidService := services.NewBidService(bidRepo, taskRepo)
 	analyticsService := services.NewAnalyticsService(analyticsRepo)
+	orgService := services.NewOrgService(orgRepo, userRepo)
 
 	// Initialize email and OTP services if Redis is available
 	var emailService *services.EmailService
@@ -90,6 +93,7 @@ func main() {
 	taskHandler := handlers.NewTaskHandler(taskService)
 	bidHandler := handlers.NewBidHandler(bidService)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
+	orgHandler := handlers.NewOrgHandler(orgService)
 
 	var otpHandler *handlers.OTPHandler
 	if otpService != nil {
@@ -157,6 +161,31 @@ func main() {
 			// Analytics routes
 			protected.GET("/analytics/dashboard", analyticsHandler.GetDashboardAnalytics)
 			protected.GET("/analytics/me", analyticsHandler.GetUserAnalytics)
+
+			// Org routes
+			protected.POST("/orgs", orgHandler.CreateOrg)
+			protected.POST("/orgs/accept-invitation", orgHandler.AcceptInvitation)
+
+			orgs := protected.Group("/orgs/:id")
+			orgs.Use(middleware.RequireOrgMember())
+			{
+				orgs.GET("", orgHandler.GetOrg)
+				orgs.PUT("", middleware.RequireRole(models.RoleOrgAdmin), orgHandler.UpdateOrg)
+				orgs.PATCH("/onboarding", middleware.RequireRole(models.RoleOrgAdmin), orgHandler.UpdateOnboarding)
+
+				// Members
+				orgs.GET("/members", orgHandler.ListMembers)
+				orgs.DELETE("/members/:userID", middleware.RequireRole(models.RoleOrgAdmin), orgHandler.RemoveMember)
+				orgs.PATCH("/members/:userID/role", middleware.RequireRole(models.RoleOrgAdmin), orgHandler.ChangeRole)
+
+				// Invitations
+				orgs.POST("/invitations", middleware.RequireRole(models.RoleOrgAdmin, models.RoleManager), orgHandler.SendInvitation)
+				orgs.GET("/invitations", middleware.RequireRole(models.RoleOrgAdmin, models.RoleManager), orgHandler.ListInvitations)
+				orgs.DELETE("/invitations/:invID", middleware.RequireRole(models.RoleOrgAdmin), orgHandler.RevokeInvitation)
+
+				// Audit log (enterprise)
+				orgs.GET("/audit-log", middleware.RequireRole(models.RoleOrgAdmin), orgHandler.GetAuditLog)
+			}
 		}
 	}
 

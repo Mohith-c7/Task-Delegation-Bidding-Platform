@@ -7,6 +7,16 @@ import TaskCard from '../components/tasks/TaskCard'
 import CreateTaskModal from '../components/tasks/CreateTaskModal'
 import PlaceBidModal from '../components/bids/PlaceBidModal'
 import ViewBidsModal from '../components/bids/ViewBidsModal'
+import { Button, SkeletonCard, EmptyState } from '../design-system'
+import { Plus, LayoutGrid, List, TrendingUp, CheckCircle2, Clock3, Layers } from 'lucide-react'
+
+const STATUS_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'open', label: 'Open' },
+  { value: 'assigned', label: 'Assigned' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed', label: 'Completed' },
+]
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -14,23 +24,21 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('open')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [bidModalOpen, setBidModalOpen] = useState(false)
   const [viewBidsModalOpen, setViewBidsModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   useEffect(() => {
-    if (!user) {
-      navigate('/')
-      return
-    }
+    if (!user) { navigate('/'); return }
     loadTasks()
   }, [user, navigate, filter])
 
   const loadTasks = async () => {
     try {
       setLoading(true)
-      const data = await taskService.getAllTasks(filter)
+      const data = await taskService.getAllTasks(filter === 'all' ? '' : filter)
       setTasks(data)
     } catch (error) {
       console.error('Failed to load tasks:', error)
@@ -39,149 +47,122 @@ export default function Dashboard() {
     }
   }
 
-  const handlePlaceBid = (task: Task) => {
-    setSelectedTask(task)
-    setBidModalOpen(true)
-  }
-
-  const handleViewBids = (task: Task) => {
-    setSelectedTask(task)
-    setViewBidsModalOpen(true)
-  }
-
+  const handlePlaceBid = (task: Task) => { setSelectedTask(task); setBidModalOpen(true) }
+  const handleViewBids = (task: Task) => { setSelectedTask(task); setViewBidsModalOpen(true) }
   const handleDeleteTask = async (task: Task) => {
-    if (!confirm('Are you sure you want to delete this task?')) return
-
-    try {
-      await taskService.deleteTask(task.id)
-      loadTasks()
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to delete task')
-    }
+    if (!confirm('Delete this task?')) return
+    try { await taskService.deleteTask(task.id); loadTasks() }
+    catch (e: any) { alert(e.response?.data?.error || 'Failed to delete task') }
   }
 
   const isTaskOwner = (task: Task) => task.owner_id === user?.id
 
+  const stats = [
+    { label: 'Total Tasks', value: tasks.length, icon: Layers, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Open', value: tasks.filter(t => t.status === 'open').length, icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
+    { label: 'In Progress', value: tasks.filter(t => t.status === 'assigned' || t.status === 'in_progress').length, icon: Clock3, color: 'text-warning', bg: 'bg-warning/10' },
+    { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, icon: CheckCircle2, color: 'text-secondary', bg: 'bg-secondary/10' },
+  ]
+
   return (
     <Layout>
+      {/* Page header */}
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">Browse and manage tasks</p>
+            <h1 className="text-2xl font-bold text-text-primary">Task Marketplace</h1>
+            <p className="text-sm text-text-secondary mt-0.5">Discover and bid on tasks from your team</p>
           </div>
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
-          >
-            + Create Task
-          </button>
+          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setCreateModalOpen(true)}>
+            Create Task
+          </Button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Total Tasks</h3>
-            <p className="text-3xl font-bold text-blue-600 mt-2">{tasks.length}</p>
-          </div>
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Open Tasks</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">
-              {tasks.filter(t => t.status === 'open').length}
-            </p>
-          </div>
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Active</h3>
-            <p className="text-3xl font-bold text-purple-600 mt-2">
-              {tasks.filter(t => t.status === 'assigned' || t.status === 'in_progress').length}
-            </p>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-2 mb-6">
-          {['open', 'assigned', 'in_progress', 'completed'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                filter === status
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {status.replace('_', ' ').charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-            </button>
+        {/* Stats row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {stats.map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className="bg-surface-2 rounded-2xl p-4 border border-border flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+                <Icon size={18} className={color} />
+              </div>
+              <div>
+                <p className="text-xs text-text-tertiary font-medium">{label}</p>
+                <p className={`text-xl font-bold ${color}`}>{value}</p>
+              </div>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* Tasks List */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          {filter.charAt(0).toUpperCase() + filter.slice(1).replace('_', ' ')} Tasks
-        </h2>
-
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-500 mt-4">Loading tasks...</p>
-          </div>
-        ) : tasks.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-            <p className="text-gray-500 text-lg">No {filter} tasks found.</p>
-            {filter === 'open' && (
+        {/* Filter + view toggle */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 bg-surface-2 border border-border rounded-xl p-1 overflow-x-auto">
+            {STATUS_FILTERS.map(({ value, label }) => (
               <button
-                onClick={() => setCreateModalOpen(true)}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                key={value}
+                onClick={() => setFilter(value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
+                  filter === value
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-3'
+                }`}
               >
-                Create Your First Task
+                {label}
               </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                isOwner={isTaskOwner(task)}
-                onPlaceBid={handlePlaceBid}
-                onViewBids={handleViewBids}
-                onDelete={handleDeleteTask}
-              />
             ))}
           </div>
-        )}
+          <div className="flex items-center gap-1 bg-surface-2 border border-border rounded-xl p-1 shrink-0">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-primary'}`}
+            >
+              <LayoutGrid size={15} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-primary'}`}
+            >
+              <List size={15} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Modals */}
-      <CreateTaskModal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        onSuccess={loadTasks}
-      />
+      {/* Content */}
+      {loading ? (
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : tasks.length === 0 ? (
+        <EmptyState
+          icon={<Layers size={40} />}
+          title="No tasks found"
+          description={filter === 'open' ? 'Be the first to create a task for your team.' : `No ${filter.replace('_', ' ')} tasks right now.`}
+          action={filter === 'open' ? { label: 'Create Task', onClick: () => setCreateModalOpen(true) } : undefined}
+        />
+      ) : (
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
+          {tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              isOwner={isTaskOwner(task)}
+              onPlaceBid={handlePlaceBid}
+              onViewBids={handleViewBids}
+              onDelete={handleDeleteTask}
+            />
+          ))}
+        </div>
+      )}
 
+      <CreateTaskModal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} onSuccess={loadTasks} />
       <PlaceBidModal
-        isOpen={bidModalOpen}
-        task={selectedTask}
-        onClose={() => {
-          setBidModalOpen(false)
-          setSelectedTask(null)
-        }}
-        onSuccess={() => {
-          loadTasks()
-          alert('Bid placed successfully!')
-        }}
+        isOpen={bidModalOpen} task={selectedTask}
+        onClose={() => { setBidModalOpen(false); setSelectedTask(null) }}
+        onSuccess={() => { loadTasks() }}
       />
-
       <ViewBidsModal
-        isOpen={viewBidsModalOpen}
-        task={selectedTask}
-        onClose={() => {
-          setViewBidsModalOpen(false)
-          setSelectedTask(null)
-        }}
+        isOpen={viewBidsModalOpen} task={selectedTask}
+        onClose={() => { setViewBidsModalOpen(false); setSelectedTask(null) }}
         onBidApproved={loadTasks}
       />
     </Layout>

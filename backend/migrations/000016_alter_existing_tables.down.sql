@@ -1,0 +1,9 @@
+ALTER TABLE users DROP COLUMN IF EXISTS notif_prefs;
+ALTER TABLE users DROP COLUMN IF EXISTS avatar_url;
+ALTER TABLE users DROP COLUMN IF EXISTS skills;
+
+DROP INDEX IF EXISTS idx_tasks_search;
+ALTER TABLE tasks DROP COLUMN IF EXISTS search_vector;
+
+DROP INDEX IF EXISTS idx_tasks_org_id;
+ALTER TABLE tasks DROP COLUMN IF EXISTS org_id;

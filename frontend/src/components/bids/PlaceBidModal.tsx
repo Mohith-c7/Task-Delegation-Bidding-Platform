@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Task } from '../../services/taskService'
 import { bidService } from '../../services/bidService'
+import { Button, Input, Textarea, StatusBadge, PriorityBadge } from '../../design-system'
+import { X, Gavel, Calendar, Tag, Clock } from 'lucide-react'
 
 interface PlaceBidModalProps {
   isOpen: boolean
@@ -10,27 +12,19 @@ interface PlaceBidModalProps {
 }
 
 export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: PlaceBidModalProps) {
-  const [formData, setFormData] = useState({
-    message: '',
-    estimated_completion: '',
-  })
+  const [formData, setFormData] = useState({ message: '', estimated_completion: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!task) return
-
     setError('')
     setLoading(true)
-
     try {
-      // Convert datetime-local format to ISO 8601 with timezone
-      const completionISO = new Date(formData.estimated_completion).toISOString()
-      
       await bidService.placeBid(task.id, {
         message: formData.message,
-        estimated_completion: completionISO,
+        estimated_completion: new Date(formData.estimated_completion).toISOString(),
       })
       onSuccess()
       onClose()
@@ -45,76 +39,77 @@ export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: Plac
   if (!isOpen || !task) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">Place Bid</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
-            >
-              ×
-            </button>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-surface-1 w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto animate-slide-up">
+        <div className="sticky top-0 bg-surface-1 border-b border-border px-6 py-4 flex items-center justify-between rounded-t-3xl z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-success/10 flex items-center justify-center">
+              <Gavel size={15} className="text-success" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-text-primary">Place Bid</h2>
+              <p className="text-xs text-text-tertiary">Submit your proposal for this task</p>
+            </div>
           </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-surface-3 hover:bg-surface-4 flex items-center justify-center transition-colors">
+            <X size={15} className="text-text-secondary" />
+          </button>
+        </div>
 
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-1">{task.title}</h3>
-            <p className="text-sm text-gray-600">{task.description}</p>
+        <div className="p-6 space-y-5">
+          <div className="bg-surface-3 rounded-2xl p-4 border border-border">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h3 className="text-sm font-semibold text-text-primary line-clamp-2">{task.title}</h3>
+              <StatusBadge status={task.status} size="sm" />
+            </div>
+            <p className="text-xs text-text-secondary line-clamp-2 mb-3">{task.description}</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <PriorityBadge priority={task.priority} size="sm" />
+              {task.skills.slice(0, 3).map((s, i) => (
+                <span key={i} className="flex items-center gap-1 text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-medium">
+                  <Tag size={9} />{s}
+                </span>
+              ))}
+              <span className="flex items-center gap-1 text-[10px] text-text-tertiary ml-auto">
+                <Clock size={9} />
+                Due {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
+            <div className="p-3 bg-error/10 border border-error/20 text-error text-sm rounded-xl">{error}</div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Your Proposal *
-              </label>
-              <textarea
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">Your Proposal</label>
+              <Textarea
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Explain why you're the best fit for this task..."
-                rows={5}
-                required
-                disabled={loading}
+                placeholder="Explain your approach, relevant experience, and why you're the best fit..."
+                rows={5} required disabled={loading}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estimated Completion Date *
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                <span className="flex items-center gap-1.5"><Calendar size={12} /> Estimated Completion</span>
               </label>
-              <input
+              <Input
                 type="datetime-local"
                 value={formData.estimated_completion}
                 onChange={(e) => setFormData({ ...formData, estimated_completion: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-                disabled={loading}
+                required disabled={loading}
               />
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                disabled={loading}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
-                disabled={loading}
-              >
-                {loading ? 'Submitting...' : 'Submit Bid'}
-              </button>
+            <div className="flex gap-3 pt-2">
+              <Button type="button" variant="ghost" onClick={onClose} disabled={loading} className="flex-1">Cancel</Button>
+              <Button type="submit" variant="success" loading={loading} leftIcon={<Gavel size={15} />} className="flex-1">
+                Submit Bid
+              </Button>
             </div>
           </form>
         </div>

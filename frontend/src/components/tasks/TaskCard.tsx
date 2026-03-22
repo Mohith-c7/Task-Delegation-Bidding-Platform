@@ -1,4 +1,7 @@
+import { Calendar, Clock, ChevronRight, Trash2, Eye, Gavel } from 'lucide-react'
 import { Task } from '../../services/taskService'
+import { Card, StatusBadge, PriorityBadge, Button } from '../../design-system'
+import { cn } from '../../design-system/utils'
 
 interface TaskCardProps {
   task: Task
@@ -10,112 +13,149 @@ interface TaskCardProps {
   isOwner?: boolean
 }
 
-export default function TaskCard({ 
-  task, 
-  onViewBids, 
-  onPlaceBid, 
-  onEdit, 
+function formatDeadline(deadline: string) {
+  const date = new Date(deadline)
+  const now  = new Date()
+  const diff = date.getTime() - now.getTime()
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
+
+  if (days < 0)  return { label: `${Math.abs(days)}d overdue`, overdue: true }
+  if (days === 0) return { label: 'Due today', overdue: false, urgent: true }
+  if (days === 1) return { label: 'Due tomorrow', overdue: false, urgent: true }
+  if (days <= 7)  return { label: `${days}d left`, overdue: false, urgent: true }
+  return { label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), overdue: false, urgent: false }
+}
+
+export default function TaskCard({
+  task,
+  onViewBids,
+  onPlaceBid,
   onDelete,
   showActions = true,
-  isOwner = false 
+  isOwner = false,
 }: TaskCardProps) {
-  const priorityColors = {
-    low: 'bg-green-100 text-green-700',
-    medium: 'bg-yellow-100 text-yellow-700',
-    high: 'bg-orange-100 text-orange-700',
-    critical: 'bg-red-100 text-red-700',
-  }
-
-  const statusColors = {
-    open: 'bg-blue-100 text-blue-700',
-    assigned: 'bg-purple-100 text-purple-700',
-    in_progress: 'bg-indigo-100 text-indigo-700',
-    completed: 'bg-green-100 text-green-700',
-    closed: 'bg-gray-100 text-gray-700',
-  }
+  const deadline = formatDeadline(task.deadline)
 
   return (
-    <div className="border border-gray-200 rounded-lg p-5 hover:shadow-lg transition bg-white">
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <h4 className="text-lg font-semibold text-gray-900 mb-1">{task.title}</h4>
-          <div className="flex gap-2 mb-2">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityColors[task.priority]}`}>
-              {task.priority}
-            </span>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[task.status]}`}>
-              {task.status.replace('_', ' ')}
-            </span>
+    <Card
+      elevation={1}
+      padding="none"
+      hoverable
+      className="group flex flex-col overflow-hidden border border-border hover:border-primary/30 transition-all duration-200"
+    >
+      {/* Priority accent bar */}
+      <div className={cn(
+        'h-1 w-full',
+        task.priority === 'critical' && 'bg-error',
+        task.priority === 'high'     && 'bg-priority-high',
+        task.priority === 'medium'   && 'bg-warning',
+        task.priority === 'low'      && 'bg-success',
+      )} />
+
+      <div className="p-5 flex flex-col flex-1">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-semibold text-text-primary leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+              {task.title}
+            </h4>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <StatusBadge status={task.status} size="sm" />
           </div>
         </div>
-        <div className="text-right ml-4">
-          <p className="text-sm text-gray-500">
-            Due: {new Date(task.deadline).toLocaleDateString()}
-          </p>
+
+        {/* Description */}
+        <p className="text-xs text-text-secondary line-clamp-2 mb-4 leading-relaxed flex-1">
+          {task.description}
+        </p>
+
+        {/* Skills */}
+        {task.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {task.skills.slice(0, 3).map((skill, i) => (
+              <span key={i} className="px-2 py-0.5 bg-primary-light text-primary text-[10px] font-medium rounded-md">
+                {skill}
+              </span>
+            ))}
+            {task.skills.length > 3 && (
+              <span className="px-2 py-0.5 bg-surface-3 text-text-tertiary text-[10px] font-medium rounded-md">
+                +{task.skills.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Meta row */}
+        <div className="flex items-center justify-between text-xs text-text-tertiary mb-4">
+          <div className="flex items-center gap-1">
+            <PriorityBadge priority={task.priority} size="sm" />
+          </div>
+          <div className={cn(
+            'flex items-center gap-1',
+            deadline.overdue ? 'text-error' : deadline.urgent ? 'text-warning' : 'text-text-tertiary',
+          )}>
+            {deadline.overdue ? <Clock size={11} /> : <Calendar size={11} />}
+            <span className="font-medium">{deadline.label}</span>
+          </div>
         </div>
+
+        {/* Footer */}
+        {showActions && (
+          <div className="flex items-center gap-2 pt-3 border-t border-border">
+            {isOwner ? (
+              <>
+                {onViewBids && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => onViewBids(task)}
+                    leftIcon={<Eye size={13} />}
+                    className="flex-1"
+                  >
+                    View Bids
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDelete(task)}
+                    className="text-text-tertiary hover:text-error hover:bg-error-light"
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                {task.status === 'open' && onPlaceBid && (
+                  <Button
+                    variant="success"
+                    size="sm"
+                    onClick={() => onPlaceBid(task)}
+                    leftIcon={<Gavel size={13} />}
+                    className="flex-1"
+                  >
+                    Place Bid
+                  </Button>
+                )}
+                {onViewBids && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onViewBids(task)}
+                    rightIcon={<ChevronRight size={13} />}
+                    className={task.status !== 'open' ? 'flex-1' : ''}
+                  >
+                    Details
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
-
-      <p className="text-gray-600 mb-3 line-clamp-2">{task.description}</p>
-
-      <div className="flex flex-wrap gap-2 mb-4">
-        {task.skills.map((skill, idx) => (
-          <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200">
-            {skill}
-          </span>
-        ))}
-      </div>
-
-      {showActions && (
-        <div className="flex gap-2 pt-3 border-t border-gray-200">
-          {isOwner ? (
-            <>
-              {onViewBids && (
-                <button
-                  onClick={() => onViewBids(task)}
-                  className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition"
-                >
-                  View Bids
-                </button>
-              )}
-              {onEdit && (
-                <button
-                  onClick={() => onEdit(task)}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition"
-                >
-                  Edit
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={() => onDelete(task)}
-                  className="px-3 py-2 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 transition"
-                >
-                  Delete
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              {task.status === 'open' && onPlaceBid && (
-                <button
-                  onClick={() => onPlaceBid(task)}
-                  className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition"
-                >
-                  Place Bid
-                </button>
-              )}
-              {onViewBids && (
-                <button
-                  onClick={() => onViewBids(task)}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition"
-                >
-                  View Details
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
+    </Card>
   )
 }

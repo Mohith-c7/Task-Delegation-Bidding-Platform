@@ -1,286 +1,222 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsService, AnalyticsResponse } from '../services/analyticsService';
 import Layout from '../components/common/Layout';
+import { SkeletonStat } from '../design-system';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
+  BarElement, ArcElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { TrendingUp, CheckCircle2, Layers, Gavel, Users, Award, ChevronDown } from 'lucide-react';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
-const Analytics = () => {
+const CHART_COLORS = {
+  primary:   { solid: '#6750A4', alpha: 'rgba(103,80,164,0.15)' },
+  success:   { solid: '#4CAF50', alpha: 'rgba(76,175,80,0.15)' },
+  warning:   { solid: '#FF9800', alpha: 'rgba(255,152,0,0.15)' },
+  error:     { solid: '#F44336', alpha: 'rgba(244,67,54,0.15)' },
+  secondary: { solid: '#625B71', alpha: 'rgba(98,91,113,0.15)' },
+}
+
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { labels: { font: { family: 'Inter, sans-serif', size: 11 }, color: '#79747E', boxWidth: 12 } } },
+}
+
+export default function Analytics() {
   const [days, setDays] = useState(30);
 
-  const { data: analytics, isLoading, refetch } = useQuery<AnalyticsResponse>({
+  const { data: analytics, isLoading } = useQuery<AnalyticsResponse>({
     queryKey: ['analytics', days],
     queryFn: () => analyticsService.getDashboardAnalytics(days),
   });
 
-  useEffect(() => {
-    refetch();
-  }, [days, refetch]);
+  const summary = analytics?.summary
+  const task_trends = analytics?.task_trends ?? []
+  const top_bidders = analytics?.top_bidders ?? []
+  const top_task_owners = analytics?.top_task_owners ?? []
+  const skill_demands = analytics?.skill_demands ?? []
 
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-xl text-gray-600">Loading analytics...</div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!analytics) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-xl text-red-600">Failed to load analytics</div>
-        </div>
-      </Layout>
-    );
-  }
-
-  const { summary, task_trends, top_bidders, top_task_owners, skill_demands } = analytics;
-
-  // Task Trends Chart Data
-  const trendChartData = {
+  const trendData = {
     labels: task_trends.map(t => new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
     datasets: [
       {
-        label: 'Tasks Created',
+        label: 'Created',
         data: task_trends.map(t => t.created),
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-        tension: 0.3,
+        borderColor: CHART_COLORS.primary.solid,
+        backgroundColor: CHART_COLORS.primary.alpha,
+        tension: 0.4, fill: true, pointRadius: 3,
       },
       {
-        label: 'Tasks Completed',
+        label: 'Completed',
         data: task_trends.map(t => t.completed),
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.5)',
-        tension: 0.3,
+        borderColor: CHART_COLORS.success.solid,
+        backgroundColor: CHART_COLORS.success.alpha,
+        tension: 0.4, fill: true, pointRadius: 3,
       },
     ],
-  };
+  }
 
-  // Priority Distribution Chart
-  const priorityChartData = {
-    labels: Object.keys(summary.tasks_by_priority).map(p => p.charAt(0).toUpperCase() + p.slice(1)),
-    datasets: [
-      {
-        data: Object.values(summary.tasks_by_priority),
-        backgroundColor: [
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(251, 146, 60, 0.8)',
-          'rgba(239, 68, 68, 0.8)',
-        ],
-      },
-    ],
-  };
+  const priorityData = {
+    labels: summary ? Object.keys(summary.tasks_by_priority).map(p => p.charAt(0).toUpperCase() + p.slice(1)) : [],
+    datasets: [{
+      data: summary ? Object.values(summary.tasks_by_priority) : [],
+      backgroundColor: [CHART_COLORS.success.solid, CHART_COLORS.primary.solid, CHART_COLORS.warning.solid, CHART_COLORS.error.solid],
+      borderWidth: 0, hoverOffset: 6,
+    }],
+  }
 
-  // Status Distribution Chart
-  const statusChartData = {
-    labels: Object.keys(summary.tasks_by_status).map(s => s.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())),
-    datasets: [
-      {
-        data: Object.values(summary.tasks_by_status),
-        backgroundColor: [
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(251, 146, 60, 0.8)',
-          'rgba(168, 85, 247, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(107, 114, 128, 0.8)',
-        ],
-      },
-    ],
-  };
+  const statusData = {
+    labels: summary ? Object.keys(summary.tasks_by_status).map(s => s.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())) : [],
+    datasets: [{
+      data: summary ? Object.values(summary.tasks_by_status) : [],
+      backgroundColor: [CHART_COLORS.primary.solid, CHART_COLORS.warning.solid, CHART_COLORS.secondary.solid, CHART_COLORS.success.solid, '#9E9E9E'],
+      borderWidth: 0, hoverOffset: 6,
+    }],
+  }
 
-  // Skill Demand Chart
-  const skillChartData = {
+  const skillData = {
     labels: skill_demands.map(s => s.skill),
     datasets: [
-      {
-        label: 'Tasks',
-        data: skill_demands.map(s => s.task_count),
-        backgroundColor: 'rgba(59, 130, 246, 0.8)',
-      },
-      {
-        label: 'Bids',
-        data: skill_demands.map(s => s.bid_count),
-        backgroundColor: 'rgba(34, 197, 94, 0.8)',
-      },
+      { label: 'Tasks', data: skill_demands.map(s => s.task_count), backgroundColor: CHART_COLORS.primary.solid, borderRadius: 6 },
+      { label: 'Bids', data: skill_demands.map(s => s.bid_count), backgroundColor: CHART_COLORS.success.solid, borderRadius: 6 },
     ],
-  };
+  }
+
+  const statCards = summary ? [
+    { label: 'Total Tasks', value: summary.total_tasks, sub: `${summary.task_completion_rate.toFixed(1)}% completion`, icon: Layers, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Open Tasks', value: summary.open_tasks, sub: 'Available for bidding', icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
+    { label: 'Completed', value: summary.completed_tasks, sub: 'Successfully finished', icon: CheckCircle2, color: 'text-secondary', bg: 'bg-secondary/10' },
+    { label: 'Total Bids', value: summary.total_bids, sub: `Avg ${summary.average_completion_time_hours.toFixed(1)}h completion`, icon: Gavel, color: 'text-warning', bg: 'bg-warning/10' },
+  ] : []
 
   return (
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-            <option value={365}>Last year</option>
-          </select>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="text-sm text-gray-600 mb-1">Total Tasks</div>
-            <div className="text-3xl font-bold text-gray-900">{summary.total_tasks}</div>
-            <div className="text-sm text-green-600 mt-2">
-              {summary.task_completion_rate.toFixed(1)}% completion rate
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">Analytics</h1>
+            <p className="text-sm text-text-secondary mt-0.5">Platform-wide insights and performance metrics</p>
           </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="text-sm text-gray-600 mb-1">Open Tasks</div>
-            <div className="text-3xl font-bold text-blue-600">{summary.open_tasks}</div>
-            <div className="text-sm text-gray-500 mt-2">Available for bidding</div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="text-sm text-gray-600 mb-1">Completed Tasks</div>
-            <div className="text-3xl font-bold text-green-600">{summary.completed_tasks}</div>
-            <div className="text-sm text-gray-500 mt-2">Successfully finished</div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="text-sm text-gray-600 mb-1">Total Bids</div>
-            <div className="text-3xl font-bold text-purple-600">{summary.total_bids}</div>
-            <div className="text-sm text-gray-500 mt-2">
-              Avg: {summary.average_completion_time_hours.toFixed(1)}h completion
-            </div>
+          <div className="relative">
+            <select
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+              className="appearance-none bg-surface-2 border border-border text-text-primary text-sm rounded-xl px-4 py-2 pr-9 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+            >
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+              <option value={365}>Last year</option>
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
           </div>
         </div>
 
-        {/* Charts Row 1 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Task Trends */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Task Trends</h2>
-            <Line data={trendChartData} options={{ responsive: true, maintainAspectRatio: true }} />
-          </div>
-
-          {/* Priority Distribution */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Tasks by Priority</h2>
-            <div className="flex justify-center">
-              <div className="w-64 h-64">
-                <Doughnut data={priorityChartData} options={{ responsive: true, maintainAspectRatio: true }} />
+        {/* Stat cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {isLoading
+            ? Array.from({ length: 4 }).map((_, i) => <SkeletonStat key={i} />)
+            : statCards.map(({ label, value, sub, icon: Icon, color, bg }) => (
+              <div key={label} className="bg-surface-2 rounded-2xl p-5 border border-border">
+                <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-3`}>
+                  <Icon size={18} className={color} />
+                </div>
+                <p className="text-xs text-text-tertiary font-medium mb-1">{label}</p>
+                <p className={`text-2xl font-bold ${color} mb-1`}>{value}</p>
+                <p className="text-xs text-text-tertiary">{sub}</p>
               </div>
+            ))
+          }
+        </div>
+
+        {/* Charts row 1 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 bg-surface-2 rounded-2xl border border-border p-5">
+            <h2 className="text-sm font-semibold text-text-primary mb-4">Task Trends</h2>
+            <div className="h-56">
+              {isLoading ? <div className="h-full bg-surface-3 rounded-xl animate-pulse" /> : <Line data={trendData} options={chartDefaults} />}
+            </div>
+          </div>
+          <div className="bg-surface-2 rounded-2xl border border-border p-5">
+            <h2 className="text-sm font-semibold text-text-primary mb-4">By Priority</h2>
+            <div className="h-56 flex items-center justify-center">
+              {isLoading ? <div className="w-40 h-40 rounded-full bg-surface-3 animate-pulse" /> : <Doughnut data={priorityData} options={{ ...chartDefaults, cutout: '65%' }} />}
             </div>
           </div>
         </div>
 
-        {/* Charts Row 2 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Status Distribution */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Tasks by Status</h2>
-            <div className="flex justify-center">
-              <div className="w-64 h-64">
-                <Doughnut data={statusChartData} options={{ responsive: true, maintainAspectRatio: true }} />
-              </div>
+        {/* Charts row 2 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="bg-surface-2 rounded-2xl border border-border p-5">
+            <h2 className="text-sm font-semibold text-text-primary mb-4">By Status</h2>
+            <div className="h-56 flex items-center justify-center">
+              {isLoading ? <div className="w-40 h-40 rounded-full bg-surface-3 animate-pulse" /> : <Doughnut data={statusData} options={{ ...chartDefaults, cutout: '65%' }} />}
             </div>
           </div>
-
-          {/* Skill Demand */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Top Skills in Demand</h2>
-            <Bar data={skillChartData} options={{ responsive: true, maintainAspectRatio: true }} />
+          <div className="lg:col-span-2 bg-surface-2 rounded-2xl border border-border p-5">
+            <h2 className="text-sm font-semibold text-text-primary mb-4">Top Skills in Demand</h2>
+            <div className="h-56">
+              {isLoading ? <div className="h-full bg-surface-3 rounded-xl animate-pulse" /> : <Bar data={skillData} options={{ ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { ...chartDefaults.plugins.legend } } }} />}
+            </div>
           </div>
         </div>
 
-        {/* Top Performers */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Leaderboards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Top Bidders */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Top Bidders</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bids</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Success</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Completed</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {top_bidders.slice(0, 5).map((bidder) => (
-                    <tr key={bidder.bidder_id}>
-                      <td className="px-4 py-3 text-sm text-gray-900">{bidder.bidder_name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{bidder.total_bids}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="text-green-600 font-medium">{bidder.success_rate.toFixed(1)}%</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{bidder.completed_tasks}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="bg-surface-2 rounded-2xl border border-border p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Users size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold text-text-primary">Top Bidders</h2>
             </div>
+            {isLoading ? (
+              <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 bg-surface-3 rounded-xl animate-pulse" />)}</div>
+            ) : (
+              <div className="space-y-2">
+                {top_bidders.slice(0, 5).map((b, i) => (
+                  <div key={b.bidder_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-3 transition-colors">
+                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? 'bg-warning/20 text-warning' : 'bg-surface-3 text-text-tertiary'}`}>{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">{b.bidder_name}</p>
+                      <p className="text-xs text-text-tertiary">{b.total_bids} bids · {b.completed_tasks} completed</p>
+                    </div>
+                    <span className="text-xs font-semibold text-success bg-success/10 px-2 py-0.5 rounded-lg">{b.success_rate.toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Top Task Owners */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Top Task Owners</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Posted</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Completed</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Avg Bids</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {top_task_owners.slice(0, 5).map((owner) => (
-                    <tr key={owner.owner_id}>
-                      <td className="px-4 py-3 text-sm text-gray-900">{owner.owner_name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{owner.tasks_posted}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{owner.tasks_completed}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{owner.average_bids_per_task.toFixed(1)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="bg-surface-2 rounded-2xl border border-border p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Award size={16} className="text-secondary" />
+              <h2 className="text-sm font-semibold text-text-primary">Top Task Owners</h2>
             </div>
+            {isLoading ? (
+              <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 bg-surface-3 rounded-xl animate-pulse" />)}</div>
+            ) : (
+              <div className="space-y-2">
+                {top_task_owners.slice(0, 5).map((o, i) => (
+                  <div key={o.owner_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-surface-3 transition-colors">
+                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? 'bg-warning/20 text-warning' : 'bg-surface-3 text-text-tertiary'}`}>{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">{o.owner_name}</p>
+                      <p className="text-xs text-text-tertiary">{o.tasks_posted} posted · {o.tasks_completed} done</p>
+                    </div>
+                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-lg">{o.average_bids_per_task.toFixed(1)} bids/task</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
     </Layout>
-  );
-};
-
-export default Analytics;
+  )
+}
