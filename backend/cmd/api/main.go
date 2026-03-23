@@ -219,6 +219,10 @@ func main() {
 				// Billing
 				orgs.GET("/billing/subscription", billingHandler.GetSubscription)
 				orgs.PUT("/billing/subscription", middleware.RequireRole(models.RoleOrgAdmin), billingHandler.UpdateSubscription)
+
+				// Org analytics
+				orgs.GET("/analytics", analyticsHandler.GetOrgDashboard)
+				orgs.GET("/analytics/trends", analyticsHandler.GetTrends)
 			}
 		}
 	}

@@ -39,9 +39,10 @@ export default function Dashboard() {
     try {
       setLoading(true)
       const data = await taskService.getAllTasks(filter === 'all' ? '' : filter)
-      setTasks(data)
+      setTasks(data || [])
     } catch (error) {
       console.error('Failed to load tasks:', error)
+      setTasks([])
     } finally {
       setLoading(false)
     }
@@ -57,11 +58,13 @@ export default function Dashboard() {
 
   const isTaskOwner = (task: Task) => task.owner_id === user?.id
 
+  const safeTasks = Array.isArray(tasks) ? tasks : []
+
   const stats = [
-    { label: 'Total Tasks', value: tasks.length, icon: Layers, color: 'text-primary', bg: 'bg-primary/10' },
-    { label: 'Open', value: tasks.filter(t => t.status === 'open').length, icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
-    { label: 'In Progress', value: tasks.filter(t => t.status === 'assigned' || t.status === 'in_progress').length, icon: Clock3, color: 'text-warning', bg: 'bg-warning/10' },
-    { label: 'Completed', value: tasks.filter(t => t.status === 'completed').length, icon: CheckCircle2, color: 'text-secondary', bg: 'bg-secondary/10' },
+    { label: 'Total Tasks', value: safeTasks.length, icon: Layers, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Open', value: safeTasks.filter(t => t.status === 'open').length, icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
+    { label: 'In Progress', value: safeTasks.filter(t => t.status === 'assigned' || t.status === 'in_progress').length, icon: Clock3, color: 'text-warning', bg: 'bg-warning/10' },
+    { label: 'Completed', value: safeTasks.filter(t => t.status === 'completed').length, icon: CheckCircle2, color: 'text-secondary', bg: 'bg-secondary/10' },
   ]
 
   return (
@@ -132,7 +135,7 @@ export default function Dashboard() {
         <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
-      ) : tasks.length === 0 ? (
+      ) : safeTasks.length === 0 ? (
         <EmptyState
           icon={<Layers size={40} />}
           title="No tasks found"
@@ -141,7 +144,7 @@ export default function Dashboard() {
         />
       ) : (
         <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
-          {tasks.map((task) => (
+          {safeTasks.map((task) => (
             <TaskCard
               key={task.id}
               task={task}

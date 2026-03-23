@@ -432,7 +432,7 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Validates: Requirements 7.9**
 
 
-- [-] 13. Advanced search, filtering, sorting, and pagination
+- [x] 13. Advanced search, filtering, sorting, and pagination
   - [x] 13.1 Implement `SearchTasks` in `backend/internal/repository/task_repo.go`
     - Full-text search using `search_vector @@ plainto_tsquery('english', $1)` with relevance ranking
     - Filter by: status, priority, assigned_to, skills (array overlap), deadline range, creator
@@ -440,7 +440,7 @@ Incremental implementation from foundational design system through multi-tenant 
     - Pagination: max 25 per page; return total count + page metadata
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.7_
 
-  - [-] 13.2 Expose search/filter/sort/pagination via `GET /tasks` handler
+  - [x] 13.2 Expose search/filter/sort/pagination via `GET /tasks` handler
     - Parse query params: `q`, `status`, `priority`, `assigned_to`, `skills`, `deadline_from`, `deadline_to`, `creator`, `sort`, `page`, `page_size`
     - Update URL query param handling in handler
     - _Requirements: 8.1, 8.2, 8.4, 8.7_
@@ -461,17 +461,17 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Property 27: Pagination correctness**
     - **Validates: Requirements 8.7**
 
-- [ ] 14. Analytics service extensions (org scoping, trends, CSV export)
-  - [ ] 14.1 Extend `backend/internal/repository/analytics_repo.go` with org-scoped queries
+- [x] 14. Analytics service extensions (org scoping, trends, CSV export)
+  - [x] 14.1 Extend `backend/internal/repository/analytics_repo.go` with org-scoped queries
     - All queries filter by org_id; add: `GetOrgDashboard`, `GetMemberReport`, `GetTrends` (7/30/90/365 days), `ExportCSV`
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-  - [ ] 14.2 Extend `backend/internal/services/analytics_service.go`
+  - [x] 14.2 Extend `backend/internal/services/analytics_service.go`
     - Implement `GetOrgDashboard`, `GetMemberReport`, `GetTrends` (pro+ gate), `ExportCSV` (enterprise gate)
     - Redis cache with 5-min TTL; include `last_updated` timestamp in response
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7_
 
-  - [ ] 14.3 Extend `backend/internal/handlers/analytics.go` with new endpoints
+  - [x] 14.3 Extend `backend/internal/handlers/analytics.go` with new endpoints
     - `GET /analytics/dashboard`, `GET /analytics/me`, `GET /analytics/trends`, `GET /analytics/export`
     - Apply tier gates via `RequireTier` helper or inline subscription check
     - _Requirements: 9.1, 9.4, 9.5_
@@ -484,28 +484,28 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Property 29: Analytics response contains all required fields**
     - **Validates: Requirements 9.2, 9.3**
 
-- [ ] 15. Checkpoint — full backend integration test
+- [x] 15. Checkpoint — full backend integration test
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 16. Frontend: Zustand store extensions and service layer
-  - [ ] 16.1 Extend `frontend/src/store/authStore.ts` with org and role fields
+- [x] 16. Frontend: Zustand store extensions and service layer
+  - [x] 16.1 Extend `frontend/src/store/authStore.ts` with org and role fields
     - Add `orgID`, `role`, `subscriptionTier` to auth state; update login/register actions to persist these
     - _Requirements: 1.5, 2.8_
 
-  - [ ] 16.2 Create `frontend/src/store/notificationStore.ts`
+  - [x] 16.2 Create `frontend/src/store/notificationStore.ts`
     - State: `notifications[]`, `unreadCount`; actions: `addNotification`, `markRead`, `markAllRead`, `setHistory`
     - _Requirements: 6.8, 6.9, 6.10_
 
-  - [ ] 16.3 Create `frontend/src/hooks/useRBAC.ts`
+  - [x] 16.3 Create `frontend/src/hooks/useRBAC.ts`
     - Returns `{ isOrgAdmin, isManager, isEmployee, can(action) }` based on role from auth store
     - _Requirements: 2.8_
 
-  - [ ] 16.4 Create `frontend/src/services/orgService.ts`
+  - [x] 16.4 Create `frontend/src/services/orgService.ts`
     - API calls for all `/orgs/*` endpoints: createOrg, getOrg, updateOrg, listMembers, removeMember, changeRole, sendInvitation, listInvitations, revokeInvitation, acceptInvitation, updateOnboarding
     - _Requirements: 1.1, 3.1, 5.3_
 
-  - [ ] 16.5 Create `frontend/src/services/billingService.ts` and `notificationService.ts`
+  - [x] 16.5 Create `frontend/src/services/billingService.ts` and `notificationService.ts`
     - `billingService`: getSubscription, updateTier
     - `notificationService`: getHistory, markRead, markAllRead
     - _Requirements: 4.1, 6.10_
@@ -515,23 +515,23 @@ Incremental implementation from foundational design system through multi-tenant 
     - _Requirements: 2.8_
 
 
-- [ ] 17. Frontend: SSE integration and notification bell
-  - [ ] 17.1 Create `frontend/src/hooks/useSSE.ts`
+- [x] 17. Frontend: SSE integration and notification bell
+  - [x] 17.1 Create `frontend/src/hooks/useSSE.ts`
     - Manages `EventSource` connection to `/api/v1/notifications/stream`
     - Exponential backoff reconnect: starts at 1s, doubles up to 30s max
     - On message: dispatches to `notificationStore`
     - _Requirements: 6.1, 6.8_
 
-  - [ ] 17.2 Create `frontend/src/hooks/useNotifications.ts`
+  - [x] 17.2 Create `frontend/src/hooks/useNotifications.ts`
     - Wraps `notificationStore` + `notificationService`; exposes `notifications`, `unreadCount`, `markRead`, `markAllRead`
     - _Requirements: 6.8, 6.9, 6.10_
 
-  - [ ] 17.3 Create `frontend/src/components/common/NotificationBell.tsx`
+  - [x] 17.3 Create `frontend/src/components/common/NotificationBell.tsx`
     - Bell icon with unread count badge; dropdown showing recent notifications
     - Click on notification: marks as read + navigates to resource
     - _Requirements: 6.8, 6.9_
 
-  - [ ] 17.4 Wire `useSSE` into `Layout.tsx` so SSE connection is active for all authenticated pages
+  - [x] 17.4 Wire `useSSE` into `Layout.tsx` so SSE connection is active for all authenticated pages
     - _Requirements: 6.1_
 
   - [ ]* 17.5 Write unit tests for useSSE reconnection logic
@@ -539,29 +539,29 @@ Incremental implementation from foundational design system through multi-tenant 
     - _Requirements: 6.1_
 
 
-- [ ] 18. Frontend: New pages (TaskDetail, OrgSettings, Profile, Notifications)
-  - [ ] 18.1 Create `frontend/src/pages/TaskDetail.tsx`
+- [x] 18. Frontend: New pages (TaskDetail, OrgSettings, Profile, Notifications)
+  - [x] 18.1 Create `frontend/src/pages/TaskDetail.tsx`
     - Display task fields, status badge, checklist with completion toggle
     - Activity feed and comments in chronological order; add comment form
     - Status transition buttons (role-gated via `useRBAC`)
     - Skeleton loading; empty states for activity/comments
     - _Requirements: 7.1, 7.5, 7.7, 7.8, 7.9, 11.9, 11.10, 11.12_
 
-  - [ ] 18.2 Create `frontend/src/pages/OrgSettings.tsx`
+  - [x] 18.2 Create `frontend/src/pages/OrgSettings.tsx`
     - Tabs: Members list (with role badges, remove/change-role actions for org_admin), Invitations (send form + pending list + revoke), Billing (current tier + usage meters + upgrade CTA)
     - Onboarding resume link; audit log tab (enterprise only)
     - _Requirements: 2.8, 3.6, 3.7, 4.9, 5.6, 13.10_
 
-  - [ ] 18.3 Create `frontend/src/pages/Profile.tsx`
+  - [x] 18.3 Create `frontend/src/pages/Profile.tsx`
     - Edit display name, avatar URL, skills list; change password form
     - Notification preferences checkboxes per event type
     - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
-  - [ ] 18.4 Create `frontend/src/pages/Notifications.tsx`
+  - [x] 18.4 Create `frontend/src/pages/Notifications.tsx`
     - Paginated notification history; mark all read button; click-to-navigate
     - _Requirements: 6.9, 6.10_
 
-  - [ ] 18.5 Add routes for new pages in `frontend/src/App.tsx`
+  - [x] 18.5 Add routes for new pages in `frontend/src/App.tsx`
     - `/tasks/:id`, `/org/settings`, `/profile`, `/notifications`
     - _Requirements: 7.7_
 
@@ -570,18 +570,18 @@ Incremental implementation from foundational design system through multi-tenant 
     - _Requirements: 7.9_
 
 
-- [ ] 19. Frontend: Onboarding wizard
-  - [ ] 19.1 Create `frontend/src/components/onboarding/OnboardingWizard.tsx`
+- [x] 19. Frontend: Onboarding wizard
+  - [x] 19.1 Create `frontend/src/components/onboarding/OnboardingWizard.tsx`
     - Four steps: (1) org profile setup, (2) invite team members, (3) create first task, (4) completion summary
     - Progress indicator; skip button (calls `updateOnboarding` with skipped status)
     - On complete: calls `updateOnboarding` with complete status; redirects to dashboard
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [ ] 19.2 Add onboarding redirect logic in `frontend/src/App.tsx`
+  - [x] 19.2 Add onboarding redirect logic in `frontend/src/App.tsx`
     - After login: if org_admin and onboarding_status === 'incomplete', redirect to `/onboarding`
     - _Requirements: 5.1_
 
-  - [ ] 19.3 Add onboarding progress banner to `Dashboard.tsx`
+  - [x] 19.3 Add onboarding progress banner to `Dashboard.tsx`
     - Show persistent banner with step progress when onboarding_status === 'incomplete'
     - _Requirements: 5.5_
 
@@ -594,16 +594,16 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Validates: Requirements 5.3, 5.4**
 
 
-- [ ] 20. Frontend: Search, filter UI, and URL state
-  - [ ] 20.1 Create search input and filter panel components
+- [x] 20. Frontend: Search, filter UI, and URL state
+  - [x] 20.1 Create search input and filter panel components
     - `SearchBar.tsx`: debounced text input (300ms); `FilterPanel.tsx`: status, priority, skills, deadline range, assigned member dropdowns
     - _Requirements: 8.5_
 
-  - [ ] 20.2 Integrate search/filter into `Dashboard.tsx` and `MyTasks.tsx`
+  - [x] 20.2 Integrate search/filter into `Dashboard.tsx` and `MyTasks.tsx`
     - Apply filters without full page reload; sync active filters to URL query params
     - _Requirements: 8.5, 8.6_
 
-  - [ ] 20.3 Implement pagination controls component
+  - [x] 20.3 Implement pagination controls component
     - Previous/next buttons; page indicator; total count display
     - _Requirements: 8.7_
 
@@ -619,12 +619,12 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Property 27: Pagination correctness (frontend page slice utility)**
     - **Validates: Requirements 8.7**
 
-- [ ] 21. Frontend: Mobile responsiveness
-  - [ ] 21.1 Audit and fix all pages for mobile viewports (≥ 320px, no horizontal scroll)
+- [x] 21. Frontend: Mobile responsiveness
+  - [x] 21.1 Audit and fix all pages for mobile viewports (≥ 320px, no horizontal scroll)
     - Stack multi-column grids to single column on < 768px; verify all touch targets ≥ 44×44px
     - _Requirements: 12.1, 12.3, 12.5_
 
-  - [ ] 21.2 Verify Modal renders as bottom sheet on mobile and Toast supports swipe-to-dismiss
+  - [x] 21.2 Verify Modal renders as bottom sheet on mobile and Toast supports swipe-to-dismiss
     - Test at 320px, 375px, 414px viewport widths
     - _Requirements: 12.4, 12.6_
 
@@ -632,7 +632,7 @@ Incremental implementation from foundational design system through multi-tenant 
     - Test BottomNav renders on < 768px; Sidebar renders on ≥ 768px
     - _Requirements: 12.2_
 
-- [ ] 22. Final checkpoint — full end-to-end validation
+- [x] 22. Final checkpoint — full end-to-end validation
   - Ensure all tests pass, ask the user if questions arise.
 
 

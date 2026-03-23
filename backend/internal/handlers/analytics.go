@@ -52,3 +52,29 @@ func (h *AnalyticsHandler) GetUserAnalytics(c *gin.Context) {
 
 	utils.SuccessResponse(c, 200, "User analytics retrieved successfully", analytics)
 }
+
+// GetOrgDashboard returns org-scoped analytics.
+func (h *AnalyticsHandler) GetOrgDashboard(c *gin.Context) {
+	orgID := c.Param("id")
+	summary, err := h.analyticsService.GetOrgDashboard(c.Request.Context(), orgID)
+	if err != nil {
+		utils.ErrorResponse(c, 500, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Org analytics retrieved", summary)
+}
+
+// GetTrends returns task trends for an org.
+func (h *AnalyticsHandler) GetTrends(c *gin.Context) {
+	orgID := c.Param("id")
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	if days < 1 || days > 365 {
+		days = 30
+	}
+	trends, err := h.analyticsService.GetTrends(c.Request.Context(), orgID, days)
+	if err != nil {
+		utils.ErrorResponse(c, 500, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Trends retrieved", trends)
+}

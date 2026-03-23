@@ -116,7 +116,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Bottom section */}
       <div className="px-2 pb-4 space-y-1 border-t border-border pt-4">
         <Link
-          to="/settings"
+          to="/org/settings"
           className={cn(
             'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
             'text-text-secondary hover:bg-surface-3 hover:text-text-primary transition-all',
@@ -124,7 +124,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
         >
           <Settings size={18} className="shrink-0 text-text-tertiary" />
-          {!collapsed && <span>Settings</span>}
+          {!collapsed && <span>Org Settings</span>}
         </Link>
 
         {/* User profile */}

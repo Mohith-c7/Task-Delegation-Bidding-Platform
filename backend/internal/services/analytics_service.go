@@ -64,3 +64,13 @@ func (s *AnalyticsService) GetDashboardAnalytics(ctx context.Context, days int) 
 func (s *AnalyticsService) GetUserAnalytics(ctx context.Context, userID string) (*models.UserAnalytics, error) {
 	return s.analyticsRepo.GetUserAnalytics(ctx, userID)
 }
+
+// GetOrgDashboard returns org-scoped analytics.
+func (s *AnalyticsService) GetOrgDashboard(ctx context.Context, orgID string) (*models.AnalyticsSummary, error) {
+	return s.analyticsRepo.GetOrgDashboard(ctx, orgID)
+}
+
+// GetTrends returns task trends for an org (pro+ feature).
+func (s *AnalyticsService) GetTrends(ctx context.Context, orgID string, days int) ([]models.TaskTrend, error) {
+	return s.analyticsRepo.GetTrends(ctx, orgID, days)
+}

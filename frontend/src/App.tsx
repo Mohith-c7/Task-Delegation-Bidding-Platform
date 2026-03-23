@@ -7,6 +7,11 @@ import MyTasks from './pages/MyTasks'
 import MyBids from './pages/MyBids'
 import Analytics from './pages/Analytics'
 import MyAnalytics from './pages/MyAnalytics'
+import TaskDetail from './pages/TaskDetail'
+import OrgSettings from './pages/OrgSettings'
+import Profile from './pages/Profile'
+import Notifications from './pages/Notifications'
+import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
 import { useAuthStore } from './store/authStore'
 import { ToastProvider } from './design-system'
 
@@ -34,6 +39,11 @@ function App() {
             <Route path="/my-bids"      element={<ProtectedRoute><MyBids /></ProtectedRoute>} />
             <Route path="/analytics"    element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/my-analytics" element={<ProtectedRoute><MyAnalytics /></ProtectedRoute>} />
+            <Route path="/tasks/:id"    element={<ProtectedRoute><TaskDetail /></ProtectedRoute>} />
+            <Route path="/org/settings" element={<ProtectedRoute><OrgSettings /></ProtectedRoute>} />
+            <Route path="/profile"      element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+            <Route path="/onboarding"    element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
           </Routes>
         </Router>
       </ToastProvider>

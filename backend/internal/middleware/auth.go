@@ -2,11 +2,14 @@ package middleware
 
 import (
 	"strings"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yourusername/task-delegation-platform/internal/config"
 	"github.com/yourusername/task-delegation-platform/internal/utils"
 )
+
+var uuidRegex = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -29,6 +32,13 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		claims, err := utils.ValidateToken(token, cfg.JWTSecret)
 		if err != nil {
 			utils.ErrorResponse(c, 401, "Invalid or expired token")
+			c.Abort()
+			return
+		}
+
+		// Reject tokens with non-UUID user IDs (e.g. old hardcoded test IDs)
+		if !uuidRegex.MatchString(strings.ToLower(claims.UserID)) {
+			utils.ErrorResponse(c, 401, "Invalid token: please log in again")
 			c.Abort()
 			return
 		}

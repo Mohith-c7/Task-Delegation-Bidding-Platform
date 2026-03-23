@@ -347,3 +347,56 @@ func (r *AnalyticsRepository) GetUserAnalytics(ctx context.Context, userID strin
 
 	return analytics, nil
 }
+
+// GetOrgDashboard returns org-scoped analytics summary.
+func (r *AnalyticsRepository) GetOrgDashboard(ctx context.Context, orgID string) (*models.AnalyticsSummary, error) {
+	summary := &models.AnalyticsSummary{
+		TasksByPriority: make(map[string]int),
+		TasksByStatus:   make(map[string]int),
+	}
+	query := `
+		SELECT 
+			COUNT(*) as total,
+			COUNT(CASE WHEN status = 'open' THEN 1 END) as open,
+			COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+			COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress
+		FROM tasks WHERE org_id = $1
+	`
+	err := r.db.QueryRow(ctx, query, orgID).Scan(
+		&summary.TotalTasks, &summary.OpenTasks, &summary.CompletedTasks, &summary.InProgressTasks,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if summary.TotalTasks > 0 {
+		summary.TaskCompletionRate = float64(summary.CompletedTasks) / float64(summary.TotalTasks) * 100
+	}
+	return summary, nil
+}
+
+// GetTrends returns task creation/completion trends for an org over N days.
+func (r *AnalyticsRepository) GetTrends(ctx context.Context, orgID string, days int) ([]models.TaskTrend, error) {
+	query := `
+		WITH date_series AS (
+			SELECT generate_series(CURRENT_DATE - INTERVAL '1 day' * $2, CURRENT_DATE, '1 day'::interval)::date AS date
+		)
+		SELECT TO_CHAR(ds.date, 'YYYY-MM-DD'),
+			COALESCE(c.cnt, 0), COALESCE(d.cnt, 0)
+		FROM date_series ds
+		LEFT JOIN (SELECT DATE(created_at) d, COUNT(*) cnt FROM tasks WHERE org_id=$1 GROUP BY 1) c ON ds.date=c.d
+		LEFT JOIN (SELECT DATE(updated_at) d, COUNT(*) cnt FROM tasks WHERE org_id=$1 AND status='completed' GROUP BY 1) d ON ds.date=d.d
+		ORDER BY ds.date
+	`
+	rows, err := r.db.Query(ctx, query, orgID, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var trends []models.TaskTrend
+	for rows.Next() {
+		var t models.TaskTrend
+		_ = rows.Scan(&t.Date, &t.Created, &t.Completed)
+		trends = append(trends, t)
+	}
+	return trends, nil
+}

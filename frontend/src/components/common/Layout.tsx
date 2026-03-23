@@ -1,7 +1,9 @@
 import { ReactNode, useState } from 'react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
+import { NotificationBell } from './NotificationBell'
 import { cn } from '../../design-system/utils'
+import { useSSE } from '../../hooks/useSSE'
 
 interface LayoutProps {
   children: ReactNode
@@ -9,6 +11,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
+  useSSE() // Start SSE connection for all authenticated pages
 
   return (
     <div className="min-h-screen bg-surface-2">
@@ -19,14 +22,13 @@ export default function Layout({ children }: LayoutProps) {
       <main className={cn(
         'transition-all duration-300 ease-in-out',
         'min-h-screen',
-        // Desktop: offset by sidebar width
-        collapsed ? 'md:ml-16' : 'md:ml-sidebar',
-        // Mobile: add bottom padding for bottom nav
+        collapsed ? 'md:ml-16' : 'md:ml-[240px]',
         'pb-20 md:pb-0',
       )}>
         {/* Top header bar */}
         <header className="sticky top-0 z-[100] bg-white/80 backdrop-blur-md border-b border-border h-16 flex items-center px-6">
           <div className="flex-1" />
+          <NotificationBell />
         </header>
 
         {/* Page content */}

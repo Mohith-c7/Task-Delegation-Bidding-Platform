@@ -82,6 +82,7 @@ export default {
         bounceDot: { '0%, 80%, 100%': { transform: 'scale(0)' }, '40%': { transform: 'scale(1)' } },
       },
       width:  { sidebar: '240px', 'sidebar-sm': '64px' },
+      margin: { sidebar: '240px', 'sidebar-sm': '64px' },
       height: { header: '64px' },
       minHeight: { 'touch': '44px' },
       minWidth:  { 'touch': '44px' },

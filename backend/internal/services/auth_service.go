@@ -99,7 +99,7 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*mod
 	if req.Email == "john@example.com" && req.Password == "password123" {
 		now := time.Now()
 		testUser := &models.User{
-			ID:            "test-user-id-12345",
+			ID:            "00000000-0000-0000-0000-000000000001",
 			Name:          "John Doe",
 			Email:         "john@example.com",
 			EmailVerified: true,

@@ -26,12 +26,19 @@ export const taskService = {
   async getAllTasks(status?: string): Promise<Task[]> {
     const params = status ? { status } : {}
     const response = await api.get('/tasks', { params })
-    return response.data.data
+    // Backend may return { data: Task[] } or { data: { tasks: Task[], total: number } }
+    const payload = response.data.data
+    if (Array.isArray(payload)) return payload
+    if (payload && Array.isArray(payload.tasks)) return payload.tasks
+    return []
   },
 
   async getMyTasks(): Promise<Task[]> {
     const response = await api.get('/tasks/my')
-    return response.data.data
+    const payload = response.data.data
+    if (Array.isArray(payload)) return payload
+    if (payload && Array.isArray(payload.tasks)) return payload.tasks
+    return []
   },
 
   async getTask(id: string): Promise<Task> {
