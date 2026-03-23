@@ -278,18 +278,18 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Validates: Requirements 13.9**
 
 
-- [ ] 8. Billing service and tier enforcement
-  - [ ] 8.1 Create `backend/internal/repository/billing_repo.go`
+- [-] 8. Billing service and tier enforcement
+  - [x] 8.1 Create `backend/internal/repository/billing_repo.go`
     - Methods: `GetSubscription`, `UpsertSubscription`, `CountActiveMembers`, `CountActiveTasks`
     - _Requirements: 4.1, 4.7_
 
-  - [ ] 8.2 Create `backend/internal/services/billing_service.go`
+  - [x] 8.2 Create `backend/internal/services/billing_service.go`
     - Implement `BillingService` interface: `GetSubscription`, `UpdateTier`, `CheckMemberLimit`, `CheckTaskLimit`
     - Enforce `TierLimits` map; return `TIER_LIMIT_EXCEEDED` error with plan details
     - Auto-create free subscription on org creation
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.8_
 
-  - [ ] 8.3 Create `backend/internal/handlers/billing.go`
+  - [x] 8.3 Create `backend/internal/handlers/billing.go`
     - `GET /billing/subscription` and `PUT /billing/subscription` (org_admin only)
     - _Requirements: 4.1, 4.7_
 
