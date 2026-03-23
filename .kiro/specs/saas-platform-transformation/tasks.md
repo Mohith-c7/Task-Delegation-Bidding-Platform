@@ -278,7 +278,7 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Validates: Requirements 13.9**
 
 
-- [-] 8. Billing service and tier enforcement
+- [x] 8. Billing service and tier enforcement
   - [x] 8.1 Create `backend/internal/repository/billing_repo.go`
     - Methods: `GetSubscription`, `UpsertSubscription`, `CountActiveMembers`, `CountActiveTasks`
     - _Requirements: 4.1, 4.7_
@@ -293,7 +293,7 @@ Incremental implementation from foundational design system through multi-tenant 
     - `GET /billing/subscription` and `PUT /billing/subscription` (org_admin only)
     - _Requirements: 4.1, 4.7_
 
-  - [-] 8.4 Inject `BillingService.CheckMemberLimit` into `OrgService.InviteMember` and `BillingService.CheckTaskLimit` into `TaskService.CreateTask`
+  - [x] 8.4 Inject `BillingService.CheckMemberLimit` into `OrgService.InviteMember` and `BillingService.CheckTaskLimit` into `TaskService.CreateTask`
     - _Requirements: 4.5, 4.6_
 
   - [ ]* 8.5 Write property test for subscription tier limits (Property 12)
@@ -313,14 +313,14 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Validates: Requirements 9.4, 9.5, 13.10**
 
 
-- [ ] 9. Auth service extensions (profile, password, token invalidation)
-  - [ ] 9.1 Extend `backend/internal/services/auth_service.go`
+- [x] 9. Auth service extensions (profile, password, token invalidation)
+  - [x] 9.1 Extend `backend/internal/services/auth_service.go`
     - Add `UpdateProfile(userID, req)`, `ChangePassword(userID, req)`, `InvalidateUserTokens(userID)` methods
     - `ChangePassword`: reject if new == current (return `SAME_PASSWORD`); bcrypt cost >= 12
     - `InvalidateUserTokens`: write invalidation marker to Redis with 15-min TTL
     - _Requirements: 2.7, 10.1, 10.2, 10.5, 10.6, 13.4, 13.7_
 
-  - [ ] 9.2 Extend `backend/internal/handlers/auth.go` with profile and password endpoints
+  - [x] 9.2 Extend `backend/internal/handlers/auth.go` with profile and password endpoints
     - `GET /users/me`, `PUT /users/me`, `PUT /users/me/password`, `PUT /users/me/notifications`
     - `POST /auth/logout` — invalidates refresh token in Redis
     - _Requirements: 10.1, 10.2, 10.4, 13.7_
@@ -345,30 +345,30 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Property 38: Input sanitization prevents injection**
     - **Validates: Requirements 13.8**
 
-- [ ] 10. Checkpoint — ensure all backend services compile and unit tests pass
+- [x] 10. Checkpoint — ensure all backend services compile and unit tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 
-- [ ] 11. Notification service and SSE
-  - [ ] 11.1 Create `backend/internal/repository/notification_repo.go`
+- [x] 11. Notification service and SSE
+  - [x] 11.1 Create `backend/internal/repository/notification_repo.go`
     - Methods: `CreateNotification`, `GetNotificationHistory`, `MarkRead`, `MarkAllRead`
     - _Requirements: 6.10_
 
-  - [ ] 11.2 Create `backend/internal/services/notification_service.go`
+  - [x] 11.2 Create `backend/internal/services/notification_service.go`
     - Implement `NotificationService` interface: `Publish` (writes to DB + publishes to Redis pub/sub channel `user:{id}:notifications`), `GetHistory`, `MarkRead`, `MarkAllRead`, `Subscribe` (returns channel + unsubscribe fn)
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.10_
 
-  - [ ] 11.3 Create `backend/internal/handlers/notification.go`
+  - [x] 11.3 Create `backend/internal/handlers/notification.go`
     - `GET /notifications`, `PATCH /notifications/:id/read`, `PATCH /notifications/read-all`
     - `GET /notifications/stream` — SSE handler using `c.Stream`; subscribes to Redis pub/sub; reconnect with `Retry-After` on Redis failure
     - _Requirements: 6.1, 6.8, 6.9, 6.10_
 
-  - [ ] 11.4 Inject `NotificationService.Publish` calls into bid and task handlers
+  - [x] 11.4 Inject `NotificationService.Publish` calls into bid and task handlers
     - Bid placed → notify task owner; bid approved/rejected → notify bidder; task status changed → notify owner + assignee
     - Comment posted → notify owner + assignee (if not author)
     - _Requirements: 6.2, 6.3, 6.4, 6.5, 7.6_
 
-  - [ ] 11.5 Implement deadline reminder notification job
+  - [x] 11.5 Implement deadline reminder notification job
     - Background goroutine or cron: query tasks with deadline within 24h and status not completed/closed; publish notifications
     - _Requirements: 6.7_
 
@@ -385,27 +385,27 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Validates: Requirements 6.10**
 
 
-- [ ] 12. Task service extensions (org scoping, status machine, activity feed, comments, checklist)
-  - [ ] 12.1 Extend `backend/internal/repository/task_repo.go` with org scoping and new tables
+- [x] 12. Task service extensions (org scoping, status machine, activity feed, comments, checklist)
+  - [x] 12.1 Extend `backend/internal/repository/task_repo.go` with org scoping and new tables
     - All task queries filter by `org_id`; add methods: `GetTaskDetail` (joins activity + comments + checklist), `AppendActivity`, `CreateComment`, `UpsertChecklist`
     - _Requirements: 1.4, 7.3, 7.5, 7.8_
 
-  - [ ] 12.2 Implement task status machine in `backend/internal/services/task_service.go`
+  - [x] 12.2 Implement task status machine in `backend/internal/services/task_service.go`
     - `TransitionStatus`: validate (S, S') against allowed pairs; return `INVALID_TRANSITION` (400) for invalid pairs
     - Allowed: open→assigned, assigned→in_progress, in_progress→completed, completed→closed, open→closed
     - _Requirements: 7.1, 7.2_
 
-  - [ ] 12.3 Implement activity feed appending in task service
+  - [x] 12.3 Implement activity feed appending in task service
     - On any field update: append activity entry with field_name, old_value, new_value, actor_id, timestamp
     - On bid placed/approved/rejected: append activity entry with event_type
     - _Requirements: 7.3, 7.4_
 
-  - [ ] 12.4 Implement `AddComment` and `UpdateChecklist` in task service
+  - [x] 12.4 Implement `AddComment` and `UpdateChecklist` in task service
     - `AddComment`: store comment, trigger notification (req 7.6)
     - `UpdateChecklist`: replace checklist items for task; validate items
     - _Requirements: 7.5, 7.6, 7.8_
 
-  - [ ] 12.5 Extend `backend/internal/handlers/task.go` with new endpoints
+  - [x] 12.5 Extend `backend/internal/handlers/task.go` with new endpoints
     - `GET /tasks/:id` returns `TaskDetail` (activity + comments + checklist)
     - `PATCH /tasks/:id/status`, `POST /tasks/:id/comments`, `PUT /tasks/:id/checklist`
     - Apply `RequireRole` guards: task creation requires manager+
@@ -432,15 +432,15 @@ Incremental implementation from foundational design system through multi-tenant 
     - **Validates: Requirements 7.9**
 
 
-- [ ] 13. Advanced search, filtering, sorting, and pagination
-  - [ ] 13.1 Implement `SearchTasks` in `backend/internal/repository/task_repo.go`
+- [-] 13. Advanced search, filtering, sorting, and pagination
+  - [x] 13.1 Implement `SearchTasks` in `backend/internal/repository/task_repo.go`
     - Full-text search using `search_vector @@ plainto_tsquery('english', $1)` with relevance ranking
     - Filter by: status, priority, assigned_to, skills (array overlap), deadline range, creator
     - Sort by: created_at asc/desc, deadline asc/desc, priority high-to-low
     - Pagination: max 25 per page; return total count + page metadata
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.7_
 
-  - [ ] 13.2 Expose search/filter/sort/pagination via `GET /tasks` handler
+  - [-] 13.2 Expose search/filter/sort/pagination via `GET /tasks` handler
     - Parse query params: `q`, `status`, `priority`, `assigned_to`, `skills`, `deadline_from`, `deadline_to`, `creator`, `sort`, `page`, `page_size`
     - Update URL query param handling in handler
     - _Requirements: 8.1, 8.2, 8.4, 8.7_

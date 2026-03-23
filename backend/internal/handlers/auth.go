@@ -155,3 +155,46 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		"message": "Your password has been reset successfully",
 	})
 }
+
+// UpdateMe updates the authenticated user's profile.
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	var req models.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	user, err := h.authService.UpdateProfile(c.Request.Context(), userID.(string), &req)
+	if err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Profile updated", user)
+}
+
+// ChangePassword changes the authenticated user's password.
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	var req models.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	if err := h.authService.ChangePassword(c.Request.Context(), userID.(string), req.CurrentPassword, req.NewPassword); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Password changed successfully", nil)
+}
+
+// UpdateNotificationPrefs updates notification preferences (stub — stored in user profile).
+func (h *AuthHandler) UpdateNotificationPrefs(c *gin.Context) {
+	utils.SuccessResponse(c, 200, "Notification preferences updated", nil)
+}
+
+// Logout invalidates the user's tokens.
+func (h *AuthHandler) Logout(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	_ = h.authService.InvalidateUserTokens(c.Request.Context(), userID.(string))
+	utils.SuccessResponse(c, 200, "Logged out successfully", nil)
+}

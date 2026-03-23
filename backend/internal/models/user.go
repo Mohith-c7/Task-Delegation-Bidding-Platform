@@ -31,3 +31,23 @@ type AuthResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
+
+type UpdateProfileRequest struct {
+	Name      string   `json:"name" binding:"omitempty,min=2,max=255"`
+	AvatarURL string   `json:"avatar_url" binding:"omitempty,url"`
+	Skills    []string `json:"skills"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=8"`
+}
+
+type NotificationPrefsRequest struct {
+	BidPlaced    bool `json:"bid_placed"`
+	BidApproved  bool `json:"bid_approved"`
+	BidRejected  bool `json:"bid_rejected"`
+	TaskAssigned bool `json:"task_assigned"`
+	TaskComment  bool `json:"task_comment"`
+	Deadline     bool `json:"deadline"`
+}

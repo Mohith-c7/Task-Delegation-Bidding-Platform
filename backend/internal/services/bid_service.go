@@ -9,8 +9,9 @@ import (
 )
 
 type BidService struct {
-	bidRepo  *repository.BidRepository
-	taskRepo *repository.TaskRepository
+	bidRepo         *repository.BidRepository
+	taskRepo        *repository.TaskRepository
+	notifService    *NotificationService
 }
 
 func NewBidService(bidRepo *repository.BidRepository, taskRepo *repository.TaskRepository) *BidService {
@@ -18,6 +19,10 @@ func NewBidService(bidRepo *repository.BidRepository, taskRepo *repository.TaskR
 		bidRepo:  bidRepo,
 		taskRepo: taskRepo,
 	}
+}
+
+func (s *BidService) SetNotificationService(ns *NotificationService) {
+	s.notifService = ns
 }
 
 func (s *BidService) CreateBid(ctx context.Context, taskID string, req *models.CreateBidRequest, bidderID string) (*models.Bid, error) {
@@ -57,6 +62,19 @@ func (s *BidService) CreateBid(ctx context.Context, taskID string, req *models.C
 
 	if err := s.bidRepo.Create(ctx, bid); err != nil {
 		return nil, err
+	}
+
+	// Notify task owner
+	if s.notifService != nil {
+		taskTitle := task.Title
+		_ = s.notifService.Publish(ctx, &models.Notification{
+			UserID:       task.OwnerID,
+			Type:         models.NotifBidPlaced,
+			Title:        "New bid on your task",
+			Body:         "Someone placed a bid on: " + taskTitle,
+			ResourceType: strPtr("task"),
+			ResourceID:   &taskID,
+		})
 	}
 
 	return bid, nil
@@ -105,6 +123,18 @@ func (s *BidService) ApproveBid(ctx context.Context, bidID string, approverID st
 		return err
 	}
 
+	// Notify bidder
+	if s.notifService != nil {
+		_ = s.notifService.Publish(ctx, &models.Notification{
+			UserID:       bid.BidderID,
+			Type:         models.NotifBidApproved,
+			Title:        "Your bid was approved",
+			Body:         "Your bid on \"" + task.Title + "\" was approved",
+			ResourceType: strPtr("task"),
+			ResourceID:   &task.ID,
+		})
+	}
+
 	return nil
 }
 
@@ -134,3 +164,5 @@ func (s *BidService) RejectBid(ctx context.Context, bidID string, approverID str
 	// Update bid status
 	return s.bidRepo.UpdateStatus(ctx, bidID, models.BidRejected, &approverID)
 }
+
+func strPtr(s string) *string { return &s }

@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/yourusername/task-delegation-platform/internal/config"
 	"github.com/yourusername/task-delegation-platform/internal/models"
 	"github.com/yourusername/task-delegation-platform/internal/repository"
@@ -18,6 +20,7 @@ type AuthService struct {
 	config       *config.Config
 	otpService   *OTPService
 	emailService *EmailService
+	redisClient  *redis.Client
 	resetTokens  map[string]resetTokenData // In production, use Redis
 }
 
@@ -32,6 +35,10 @@ func NewAuthService(userRepo *repository.UserRepository, cfg *config.Config) *Au
 		config:      cfg,
 		resetTokens: make(map[string]resetTokenData),
 	}
+}
+
+func (s *AuthService) SetRedisClient(rc *redis.Client) {
+	s.redisClient = rc
 }
 
 func (s *AuthService) SetOTPService(otpService *OTPService) {
@@ -333,4 +340,58 @@ func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword stri
 // GetUserByEmail gets user by email
 func (s *AuthService) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	return s.userRepo.GetByEmail(ctx, email)
+}
+
+// UpdateProfile updates a user's name, avatar_url, and skills.
+func (s *AuthService) UpdateProfile(ctx context.Context, userID string, req *models.UpdateProfileRequest) (*models.User, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if req.Name != "" {
+		user.Name = req.Name
+	}
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+// ChangePassword changes a user's password, rejecting if new == current.
+func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !utils.CheckPassword(currentPassword, user.PasswordHash) {
+		return errors.New("current password is incorrect")
+	}
+	if utils.CheckPassword(newPassword, user.PasswordHash) {
+		return errors.New("SAME_PASSWORD")
+	}
+	hashed, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	user.PasswordHash = hashed
+	return s.userRepo.Update(ctx, user)
+}
+
+// InvalidateUserTokens writes a Redis marker so auth middleware rejects existing tokens.
+func (s *AuthService) InvalidateUserTokens(ctx context.Context, userID string) error {
+	if s.redisClient == nil {
+		return nil
+	}
+	key := fmt.Sprintf("token_invalidated:%s", userID)
+	return s.redisClient.Set(ctx, key, "1", 15*time.Minute).Err()
+}
+
+// IsTokenInvalidated checks if a user's tokens have been invalidated.
+func (s *AuthService) IsTokenInvalidated(ctx context.Context, userID string) bool {
+	if s.redisClient == nil {
+		return false
+	}
+	key := fmt.Sprintf("token_invalidated:%s", userID)
+	val, err := s.redisClient.Get(ctx, key).Result()
+	return err == nil && val == "1"
 }

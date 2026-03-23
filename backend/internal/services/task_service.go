@@ -111,3 +111,88 @@ func (s *TaskService) DeleteTask(ctx context.Context, id string, userID string) 
 
 	return s.taskRepo.Delete(ctx, id)
 }
+
+// TransitionStatus validates and applies a status transition.
+func (s *TaskService) TransitionStatus(ctx context.Context, taskID, actorID string, newStatus models.TaskStatus) (*models.Task, error) {
+	task, err := s.taskRepo.GetByID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	allowed := models.AllowedTransitions[task.Status]
+	valid := false
+	for _, s := range allowed {
+		if s == newStatus {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return nil, errors.New("INVALID_TRANSITION")
+	}
+
+	oldStatus := string(task.Status)
+	task.Status = newStatus
+	if err := s.taskRepo.Update(ctx, taskID, task); err != nil {
+		return nil, err
+	}
+
+	// Append activity
+	newStatusStr := string(newStatus)
+	fieldName := "status"
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    taskID,
+		ActorID:   &actorID,
+		EventType: models.ActivityStatusChanged,
+		FieldName: &fieldName,
+		OldValue:  &oldStatus,
+		NewValue:  &newStatusStr,
+	})
+
+	return task, nil
+}
+
+// AddComment adds a comment to a task.
+func (s *TaskService) AddComment(ctx context.Context, taskID, authorID, body string) (*models.Comment, error) {
+	comment := &models.Comment{
+		TaskID:   taskID,
+		AuthorID: authorID,
+		Body:     body,
+	}
+	if err := s.taskRepo.CreateComment(ctx, comment); err != nil {
+		return nil, err
+	}
+
+	// Append activity
+	eventType := models.ActivityCommentAdded
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    taskID,
+		ActorID:   &authorID,
+		EventType: eventType,
+	})
+
+	return comment, nil
+}
+
+// UpdateChecklist replaces the checklist for a task.
+func (s *TaskService) UpdateChecklist(ctx context.Context, taskID string, items []models.ChecklistItem) error {
+	if err := s.taskRepo.UpsertChecklist(ctx, taskID, items); err != nil {
+		return err
+	}
+	eventType := models.ActivityChecklistUpdated
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    taskID,
+		EventType: eventType,
+	})
+	return nil
+}
+
+// GetTaskDetail returns full task detail with activity, comments, checklist.
+func (s *TaskService) GetTaskDetail(ctx context.Context, id string) (*models.TaskDetail, error) {
+	return s.taskRepo.GetTaskDetail(ctx, id)
+}
+
+// SearchTasks delegates to the repository search.
+func (s *TaskService) SearchTasks(ctx context.Context, params repository.TaskSearchParams) (*repository.TaskSearchResult, error) {
+	return s.taskRepo.SearchTasks(ctx, params)
+}

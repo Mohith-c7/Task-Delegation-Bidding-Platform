@@ -28,6 +28,7 @@ type Task struct {
 	Deadline    time.Time    `json:"deadline"`
 	Priority    TaskPriority `json:"priority"`
 	Status      TaskStatus   `json:"status"`
+	OrgID       string       `json:"org_id,omitempty"`
 	OwnerID     string       `json:"owner_id"`
 	AssignedTo  *string      `json:"assigned_to"`
 	CreatedAt   time.Time    `json:"created_at"`
@@ -40,6 +41,7 @@ type CreateTaskRequest struct {
 	Skills      []string     `json:"skills" binding:"required,min=1"`
 	Deadline    time.Time    `json:"deadline" binding:"required"`
 	Priority    TaskPriority `json:"priority" binding:"required,oneof=low medium high critical"`
+	OrgID       string       `json:"org_id"`
 }
 
 type UpdateTaskRequest struct {
@@ -49,4 +51,20 @@ type UpdateTaskRequest struct {
 	Deadline    time.Time    `json:"deadline" binding:"omitempty"`
 	Priority    TaskPriority `json:"priority" binding:"omitempty,oneof=low medium high critical"`
 	Status      TaskStatus   `json:"status" binding:"omitempty,oneof=open assigned in_progress completed closed"`
+}
+
+// TaskDetail is the full task view including activity, comments, and checklist.
+type TaskDetail struct {
+	Task
+	Activity  []ActivityEntry `json:"activity"`
+	Comments  []Comment       `json:"comments"`
+	Checklist []ChecklistItem `json:"checklist"`
+}
+
+// Allowed status transitions
+var AllowedTransitions = map[TaskStatus][]TaskStatus{
+	StatusOpen:       {StatusAssigned, StatusClosed},
+	StatusAssigned:   {StatusInProgress},
+	StatusInProgress: {StatusCompleted},
+	StatusCompleted:  {StatusClosed},
 }

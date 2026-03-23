@@ -65,13 +65,28 @@ func main() {
 	bidRepo := repository.NewBidRepository(dbPool)
 	analyticsRepo := repository.NewAnalyticsRepository(dbPool)
 	orgRepo := repository.NewOrgRepository(dbPool)
+	billingRepo := repository.NewBillingRepository(dbPool)
+	notifRepo := repository.NewNotificationRepository(dbPool)
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, cfg)
+	authService.SetRedisClient(redisClient)
 	taskService := services.NewTaskService(taskRepo)
 	bidService := services.NewBidService(bidRepo, taskRepo)
 	analyticsService := services.NewAnalyticsService(analyticsRepo)
 	orgService := services.NewOrgService(orgRepo, userRepo)
+	billingService := services.NewBillingService(billingRepo)
+	notifService := services.NewNotificationService(notifRepo, redisClient)
+
+	// Wire billing into org and task services
+	orgService.SetBillingService(billingService)
+	taskService.SetBillingService(billingService)
+
+	// Wire notifications into bid service
+	bidService.SetNotificationService(notifService)
+
+	// Start deadline reminder background job
+	notifService.StartDeadlineReminderJob(context.Background())
 
 	// Initialize email and OTP services if Redis is available
 	var emailService *services.EmailService
@@ -94,6 +109,8 @@ func main() {
 	bidHandler := handlers.NewBidHandler(bidService)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
 	orgHandler := handlers.NewOrgHandler(orgService)
+	billingHandler := handlers.NewBillingHandler(billingService)
+	notifHandler := handlers.NewNotificationHandler(notifService)
 
 	var otpHandler *handlers.OTPHandler
 	if otpService != nil {
@@ -142,14 +159,21 @@ func main() {
 		protected.Use(middleware.AuthMiddleware(cfg))
 		{
 			protected.GET("/users/me", authHandler.GetMe)
+			protected.PUT("/users/me", authHandler.UpdateMe)
+			protected.PUT("/users/me/password", authHandler.ChangePassword)
+			protected.PUT("/users/me/notifications", authHandler.UpdateNotificationPrefs)
+			protected.POST("/auth/logout", authHandler.Logout)
 
 			// Task routes
 			protected.POST("/tasks", taskHandler.CreateTask)
 			protected.GET("/tasks", taskHandler.GetAllTasks)
 			protected.GET("/tasks/my", taskHandler.GetMyTasks)
-			protected.GET("/tasks/:id", taskHandler.GetTask)
+			protected.GET("/tasks/:id", taskHandler.GetTaskDetail)
 			protected.PUT("/tasks/:id", taskHandler.UpdateTask)
 			protected.DELETE("/tasks/:id", taskHandler.DeleteTask)
+			protected.PATCH("/tasks/:id/status", taskHandler.TransitionStatus)
+			protected.POST("/tasks/:id/comments", taskHandler.AddComment)
+			protected.PUT("/tasks/:id/checklist", taskHandler.UpdateChecklist)
 
 			// Bid routes
 			protected.POST("/tasks/:id/bids", bidHandler.CreateBid)
@@ -161,6 +185,12 @@ func main() {
 			// Analytics routes
 			protected.GET("/analytics/dashboard", analyticsHandler.GetDashboardAnalytics)
 			protected.GET("/analytics/me", analyticsHandler.GetUserAnalytics)
+
+			// Notification routes
+			protected.GET("/notifications", notifHandler.GetNotifications)
+			protected.PATCH("/notifications/read-all", notifHandler.MarkAllRead)
+			protected.PATCH("/notifications/:id/read", notifHandler.MarkRead)
+			protected.GET("/notifications/stream", notifHandler.Stream)
 
 			// Org routes
 			protected.POST("/orgs", orgHandler.CreateOrg)
@@ -185,6 +215,10 @@ func main() {
 
 				// Audit log (enterprise)
 				orgs.GET("/audit-log", middleware.RequireRole(models.RoleOrgAdmin), orgHandler.GetAuditLog)
+
+				// Billing
+				orgs.GET("/billing/subscription", billingHandler.GetSubscription)
+				orgs.PUT("/billing/subscription", middleware.RequireRole(models.RoleOrgAdmin), billingHandler.UpdateSubscription)
 			}
 		}
 	}
