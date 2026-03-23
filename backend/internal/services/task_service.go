@@ -9,14 +9,26 @@ import (
 )
 
 type TaskService struct {
-	taskRepo *repository.TaskRepository
+	taskRepo       *repository.TaskRepository
+	billingService *BillingService
 }
 
 func NewTaskService(taskRepo *repository.TaskRepository) *TaskService {
 	return &TaskService{taskRepo: taskRepo}
 }
 
+func (s *TaskService) SetBillingService(bs *BillingService) {
+	s.billingService = bs
+}
+
 func (s *TaskService) CreateTask(ctx context.Context, req *models.CreateTaskRequest, ownerID string) (*models.Task, error) {
+	// Check task limit if org-scoped
+	if s.billingService != nil && req.OrgID != "" {
+		if err := s.billingService.CheckTaskLimit(ctx, req.OrgID); err != nil {
+			return nil, err
+		}
+	}
+
 	task := &models.Task{
 		Title:       req.Title,
 		Description: req.Description,

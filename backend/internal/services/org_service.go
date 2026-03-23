@@ -23,12 +23,17 @@ var (
 )
 
 type OrgService struct {
-	orgRepo  *repository.OrgRepository
-	userRepo *repository.UserRepository
+	orgRepo        *repository.OrgRepository
+	userRepo       *repository.UserRepository
+	billingService *BillingService
 }
 
 func NewOrgService(orgRepo *repository.OrgRepository, userRepo *repository.UserRepository) *OrgService {
 	return &OrgService{orgRepo: orgRepo, userRepo: userRepo}
+}
+
+func (s *OrgService) SetBillingService(bs *BillingService) {
+	s.billingService = bs
 }
 
 // slugify converts a name to a URL-safe slug
@@ -97,6 +102,13 @@ func (s *OrgService) CreateOrg(ctx context.Context, creatorID, name string, logo
 
 // InviteMember generates an invitation token and stores the invitation.
 func (s *OrgService) InviteMember(ctx context.Context, orgID, inviterID, email string, role models.Role) (*models.Invitation, error) {
+	// Check member limit before creating invitation
+	if s.billingService != nil {
+		if err := s.billingService.CheckMemberLimit(ctx, orgID); err != nil {
+			return nil, err
+		}
+	}
+
 	token, err := generateToken(32)
 	if err != nil {
 		return nil, err

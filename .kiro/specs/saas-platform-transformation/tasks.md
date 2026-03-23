@@ -293,7 +293,7 @@ Incremental implementation from foundational design system through multi-tenant 
     - `GET /billing/subscription` and `PUT /billing/subscription` (org_admin only)
     - _Requirements: 4.1, 4.7_
 
-  - [ ] 8.4 Inject `BillingService.CheckMemberLimit` into `OrgService.InviteMember` and `BillingService.CheckTaskLimit` into `TaskService.CreateTask`
+  - [-] 8.4 Inject `BillingService.CheckMemberLimit` into `OrgService.InviteMember` and `BillingService.CheckTaskLimit` into `TaskService.CreateTask`
     - _Requirements: 4.5, 4.6_
 
   - [ ]* 8.5 Write property test for subscription tier limits (Property 12)
