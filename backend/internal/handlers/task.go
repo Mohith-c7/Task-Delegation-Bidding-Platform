@@ -178,3 +178,20 @@ func (h *TaskHandler) UpdateChecklist(c *gin.Context) {
 	}
 	utils.SuccessResponse(c, 200, "Checklist updated", nil)
 }
+
+// RateTask handles POST /tasks/:id/rate
+func (h *TaskHandler) RateTask(c *gin.Context) {
+	id := c.Param("id")
+	userID, _ := c.Get("user_id")
+	var req models.RateTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	
+	if err := h.taskService.RateTask(c.Request.Context(), id, userID.(string), req.Rating, req.Points); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Task rated successfully", nil)
+}

@@ -35,13 +35,13 @@ func (r *TaskRepository) GetByID(ctx context.Context, id string) (*models.Task, 
 	task := &models.Task{}
 	query := `
 		SELECT id, title, description, skills, questions, deadline, priority, status, 
-		       owner_id, assigned_to, created_at, updated_at
+		       COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, rating, points, created_at, updated_at
 		FROM tasks WHERE id = $1
 	`
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&task.ID, &task.Title, &task.Description, &task.Skills, &task.Questions, &task.Deadline,
-		&task.Priority, &task.Status, &task.OwnerID, &task.AssignedTo,
-		&task.CreatedAt, &task.UpdatedAt,
+		&task.Priority, &task.Status, &task.OrgID, &task.OwnerID, &task.AssignedTo,
+		&task.Rating, &task.Points, &task.CreatedAt, &task.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -60,7 +60,7 @@ func (r *TaskRepository) GetAll(ctx context.Context, status string) ([]*models.T
 	if status != "" {
 		query = `
 			SELECT id, title, description, skills, questions, deadline, priority, status,
-			       owner_id, assigned_to, created_at, updated_at
+			       COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, rating, points, created_at, updated_at
 			FROM tasks WHERE status = $1
 			ORDER BY created_at DESC
 		`
@@ -68,7 +68,7 @@ func (r *TaskRepository) GetAll(ctx context.Context, status string) ([]*models.T
 	} else {
 		query = `
 			SELECT id, title, description, skills, questions, deadline, priority, status,
-			       owner_id, assigned_to, created_at, updated_at
+			       COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, rating, points, created_at, updated_at
 			FROM tasks
 			ORDER BY created_at DESC
 		`
@@ -85,8 +85,8 @@ func (r *TaskRepository) GetAll(ctx context.Context, status string) ([]*models.T
 		task := &models.Task{}
 		err := rows.Scan(
 			&task.ID, &task.Title, &task.Description, &task.Skills, &task.Questions, &task.Deadline,
-			&task.Priority, &task.Status, &task.OwnerID, &task.AssignedTo,
-			&task.CreatedAt, &task.UpdatedAt,
+			&task.Priority, &task.Status, &task.OrgID, &task.OwnerID, &task.AssignedTo,
+			&task.Rating, &task.Points, &task.CreatedAt, &task.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -134,7 +134,7 @@ func (r *TaskRepository) Delete(ctx context.Context, id string) error {
 func (r *TaskRepository) GetByOwnerID(ctx context.Context, ownerID string) ([]*models.Task, error) {
 	query := `
 		SELECT id, title, description, skills, questions, deadline, priority, status,
-		       owner_id, assigned_to, created_at, updated_at
+		       COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, rating, points, created_at, updated_at
 		FROM tasks WHERE owner_id = $1
 		ORDER BY created_at DESC
 	`
@@ -149,8 +149,8 @@ func (r *TaskRepository) GetByOwnerID(ctx context.Context, ownerID string) ([]*m
 		task := &models.Task{}
 		err := rows.Scan(
 			&task.ID, &task.Title, &task.Description, &task.Skills, &task.Questions, &task.Deadline,
-			&task.Priority, &task.Status, &task.OwnerID, &task.AssignedTo,
-			&task.CreatedAt, &task.UpdatedAt,
+			&task.Priority, &task.Status, &task.OrgID, &task.OwnerID, &task.AssignedTo,
+			&task.Rating, &task.Points, &task.CreatedAt, &task.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -166,10 +166,10 @@ func (r *TaskRepository) GetByOrgID(ctx context.Context, orgID, status string) (
 	var query string
 	var args []interface{}
 	if status != "" {
-		query = `SELECT id, title, description, skills, questions, deadline, priority, status, COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE org_id = $1 AND status = $2 ORDER BY created_at DESC`
+		query = `SELECT id, title, description, skills, questions, deadline, priority, status, COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, rating, points, created_at, updated_at FROM tasks WHERE org_id = $1 AND status = $2 ORDER BY created_at DESC`
 		args = []interface{}{orgID, status}
 	} else {
-		query = `SELECT id, title, description, skills, questions, deadline, priority, status, COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE org_id = $1 ORDER BY created_at DESC`
+		query = `SELECT id, title, description, skills, questions, deadline, priority, status, COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, rating, points, created_at, updated_at FROM tasks WHERE org_id = $1 ORDER BY created_at DESC`
 		args = []interface{}{orgID}
 	}
 	rows, err := r.db.Query(ctx, query, args...)
@@ -180,7 +180,7 @@ func (r *TaskRepository) GetByOrgID(ctx context.Context, orgID, status string) (
 	var tasks []*models.Task
 	for rows.Next() {
 		t := &models.Task{}
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Skills, &t.Questions, &t.Deadline, &t.Priority, &t.Status, &t.OrgID, &t.OwnerID, &t.AssignedTo, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Skills, &t.Questions, &t.Deadline, &t.Priority, &t.Status, &t.OrgID, &t.OwnerID, &t.AssignedTo, &t.Rating, &t.Points, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, err
 		}
 		tasks = append(tasks, t)
@@ -367,7 +367,7 @@ func (r *TaskRepository) SearchTasks(ctx context.Context, p TaskSearchParams) (*
 
 	// Fetch page
 	dataQuery := fmt.Sprintf(
-		`SELECT id, title, description, skills, questions, deadline, priority, status, COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE %s ORDER BY %s LIMIT $%d OFFSET $%d`,
+		`SELECT id, title, description, skills, questions, deadline, priority, status, COALESCE(org_id::text, '') as org_id, owner_id, assigned_to, rating, points, created_at, updated_at FROM tasks WHERE %s ORDER BY %s LIMIT $%d OFFSET $%d`,
 		whereClause, orderBy, argIdx, argIdx+1,
 	)
 	args = append(args, p.PageSize, offset)
@@ -381,7 +381,7 @@ func (r *TaskRepository) SearchTasks(ctx context.Context, p TaskSearchParams) (*
 	var tasks []*models.Task
 	for rows.Next() {
 		t := &models.Task{}
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Skills, &t.Questions, &t.Deadline, &t.Priority, &t.Status, &t.OrgID, &t.OwnerID, &t.AssignedTo, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Skills, &t.Questions, &t.Deadline, &t.Priority, &t.Status, &t.OrgID, &t.OwnerID, &t.AssignedTo, &t.Rating, &t.Points, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, err
 		}
 		tasks = append(tasks, t)
@@ -395,4 +395,54 @@ func (r *TaskRepository) SearchTasks(ctx context.Context, p TaskSearchParams) (*
 		PageSize:   p.PageSize,
 		TotalPages: totalPages,
 	}, nil
+}
+
+func (r *TaskRepository) RateTask(ctx context.Context, taskID string, rating, points int) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var assigneeID *string
+	var status string
+	err = tx.QueryRow(ctx, `SELECT assigned_to, status FROM tasks WHERE id = $1`, taskID).Scan(&assigneeID, &status)
+	if err != nil {
+		return err
+	}
+
+	if assigneeID == nil {
+		return errors.New("cannot rate unassigned task")
+	}
+	if status != string(models.StatusCompleted) {
+		return errors.New("only completed tasks can be rated")
+	}
+
+	// Make sure it wasn't rated already
+	var oldRating *int
+	err = tx.QueryRow(ctx, `SELECT rating FROM tasks WHERE id = $1`, taskID).Scan(&oldRating)
+	if err != nil {
+		return err
+	}
+	if oldRating != nil {
+		return errors.New("task already rated")
+	}
+
+	_, err = tx.Exec(ctx, `UPDATE tasks SET rating = $1, points = $2 WHERE id = $3`, rating, points, taskID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE users 
+		SET total_points = total_points + $1,
+		    rating_sum = rating_sum + $2,
+		    rating_count = rating_count + 1
+		WHERE id = $3
+	`, points, rating, *assigneeID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }

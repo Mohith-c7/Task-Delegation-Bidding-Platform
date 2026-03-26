@@ -3,18 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, CheckSquare, Square, Activity,
-  Clock, User, Tag, ChevronRight, Send, Loader2
+  Clock, User, Tag, ChevronRight, Send, Loader2, Star
 } from 'lucide-react'
 import api from '../services/api'
 import Layout from '../components/common/Layout'
 import { Badge, Button, Card, Skeleton } from '../design-system'
 import { useRBAC } from '../hooks/useRBAC'
+import { useAuthStore } from '../store/authStore'
+import { taskService } from '../services/taskService'
 import { cn } from '../design-system/utils'
 
 interface TaskDetailData {
   id: string; title: string; description: string; skills: string[]
   deadline: string; priority: string; status: string
   owner_id: string; assigned_to?: string; org_id?: string
+  rating?: number; points?: number
   created_at: string; updated_at: string
   activity: Array<{ id: string; event_type: string; field_name?: string; old_value?: string; new_value?: string; actor_name?: string; created_at: string }>
   comments: Array<{ id: string; author_id: string; author_name?: string; body: string; created_at: string }>
@@ -41,8 +44,11 @@ export default function TaskDetail() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   useRBAC()
+  const { user } = useAuthStore()
   const [comment, setComment] = useState('')
   const [activeTab, setActiveTab] = useState<'activity' | 'comments' | 'checklist'>('activity')
+  const [rating, setRating] = useState(0)
+  const [points, setPoints] = useState(100)
 
   const { data: task, isLoading } = useQuery<TaskDetailData>({
     queryKey: ['task-detail', id],
@@ -68,6 +74,11 @@ export default function TaskDetail() {
 
   const checklistMutation = useMutation({
     mutationFn: (items: TaskDetailData['checklist']) => api.put(`/tasks/${id}/checklist`, { items }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['task-detail', id] }),
+  })
+
+  const rateMutation = useMutation({
+    mutationFn: ({ rating, points }: { rating: number, points: number }) => taskService.rateTask(id!, rating, points),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['task-detail', id] }),
   })
 
@@ -253,6 +264,64 @@ export default function TaskDetail() {
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Rating submission */}
+            {task.status === 'completed' && task.owner_id === user?.id && !task.rating && (
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold text-[var(--color-on-surface-variant)] uppercase tracking-wide mb-3">Rate completed task</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="space-y-1">
+                    <label className="text-[var(--color-on-surface-variant)]">Rating (1-5)</label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          onClick={() => setRating(star)}
+                          className={cn("p-1 rounded-md transition-colors", rating >= star ? "text-[var(--color-primary)]" : "text-[var(--color-outline-variant)]")}
+                        >
+                          <Star className={cn("w-6 h-6", rating >= star && "fill-current")} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[var(--color-on-surface-variant)]">Points to award</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={points}
+                      onChange={e => setPoints(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => rateMutation.mutate({ rating, points })}
+                    disabled={rateMutation.isPending || rating === 0}
+                  >
+                    Submit Rating
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {/* Display Rating & Points if already rated */}
+            {task.rating && (
+              <Card className="p-5 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] border-none shadow-md">
+                <div className="flex items-center justify-between mb-3 border-b border-[var(--color-primary)]/20 pb-3">
+                   <div className="flex items-center gap-2">
+                     <Star className="w-5 h-5 fill-current text-[var(--color-primary)]"/>
+                     <span className="text-sm font-bold uppercase tracking-wider">Rating</span>
+                   </div>
+                   <span className="text-xl font-black">{task.rating}/5</span>
+                </div>
+                <div className="flex items-center justify-between">
+                   <span className="text-sm font-bold uppercase tracking-wider">Points</span>
+                   <Badge variant="primary" className="text-sm font-black px-3 py-1">+{task.points}</Badge>
                 </div>
               </Card>
             )}

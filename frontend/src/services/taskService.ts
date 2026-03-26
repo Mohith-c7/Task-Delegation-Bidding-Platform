@@ -11,6 +11,8 @@ export interface Task {
   status: 'open' | 'assigned' | 'in_progress' | 'completed' | 'closed'
   owner_id: string
   assigned_to: string | null
+  rating?: number
+  points?: number
   created_at: string
   updated_at: string
 }
@@ -63,5 +65,9 @@ export const taskService = {
 
   async deleteTask(id: string): Promise<void> {
     await api.delete(`/tasks/${id}`)
+  },
+
+  async rateTask(id: string, rating: number, points: number): Promise<void> {
+    await api.post(`/tasks/${id}/rate`, { rating, points })
   },
 }

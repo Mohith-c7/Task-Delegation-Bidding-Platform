@@ -175,6 +175,7 @@ func main() {
 			protected.PATCH("/tasks/:id/status", taskHandler.TransitionStatus)
 			protected.POST("/tasks/:id/comments", taskHandler.AddComment)
 			protected.PUT("/tasks/:id/checklist", taskHandler.UpdateChecklist)
+			protected.POST("/tasks/:id/rate", taskHandler.RateTask)
 
 			// Bid routes
 			protected.POST("/tasks/:id/bids", bidHandler.CreateBid)

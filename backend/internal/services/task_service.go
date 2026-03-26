@@ -201,3 +201,15 @@ func (s *TaskService) GetTaskDetail(ctx context.Context, id string) (*models.Tas
 func (s *TaskService) SearchTasks(ctx context.Context, params repository.TaskSearchParams) (*repository.TaskSearchResult, error) {
 	return s.taskRepo.SearchTasks(ctx, params)
 }
+
+// RateTask allows the task owner to rate the assignee and give points.
+func (s *TaskService) RateTask(ctx context.Context, taskID, ownerID string, rating, points int) error {
+	task, err := s.taskRepo.GetByID(ctx, taskID)
+	if err != nil {
+		return err
+	}
+	if task.OwnerID != ownerID {
+		return errors.New("unauthorized: only the task owner can rate the task")
+	}
+	return s.taskRepo.RateTask(ctx, taskID, rating, points)
+}
