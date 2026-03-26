@@ -3,6 +3,7 @@ import api from './api'
 export interface Bid {
   id: string
   task_id: string
+  task_title?: string
   bidder_id: string
   message: string
   estimated_completion: string

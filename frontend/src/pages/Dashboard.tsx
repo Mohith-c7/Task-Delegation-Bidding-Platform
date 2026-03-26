@@ -7,7 +7,8 @@ import TaskCard from '../components/tasks/TaskCard'
 import CreateTaskModal from '../components/tasks/CreateTaskModal'
 import PlaceBidModal from '../components/bids/PlaceBidModal'
 import ViewBidsModal from '../components/bids/ViewBidsModal'
-import { Button, SkeletonCard, EmptyState } from '../design-system'
+import { Button, SkeletonCard, EmptyState, ConfirmModal } from '../design-system'
+import { useToast } from '../design-system'
 import { Plus, LayoutGrid, List, TrendingUp, CheckCircle2, Clock3, Layers } from 'lucide-react'
 
 const STATUS_FILTERS = [
@@ -29,6 +30,9 @@ export default function Dashboard() {
   const [bidModalOpen, setBidModalOpen] = useState(false)
   const [viewBidsModalOpen, setViewBidsModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [deleteTask, setDeleteTask] = useState<Task | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const { error: toastError } = useToast()
 
   useEffect(() => {
     if (!user) { navigate('/'); return }
@@ -50,10 +54,13 @@ export default function Dashboard() {
 
   const handlePlaceBid = (task: Task) => { setSelectedTask(task); setBidModalOpen(true) }
   const handleViewBids = (task: Task) => { setSelectedTask(task); setViewBidsModalOpen(true) }
-  const handleDeleteTask = async (task: Task) => {
-    if (!confirm('Delete this task?')) return
-    try { await taskService.deleteTask(task.id); loadTasks() }
-    catch (e: any) { alert(e.response?.data?.error || 'Failed to delete task') }
+  const handleDeleteTask = async (task: Task) => { setDeleteTask(task) }
+  const confirmDelete = async () => {
+    if (!deleteTask) return
+    setDeleteLoading(true)
+    try { await taskService.deleteTask(deleteTask.id); loadTasks(); setDeleteTask(null) }
+    catch (e: any) { toastError(e.response?.data?.error || 'Failed to delete task') }
+    finally { setDeleteLoading(false) }
   }
 
   const isTaskOwner = (task: Task) => task.owner_id === user?.id
@@ -167,6 +174,17 @@ export default function Dashboard() {
         isOpen={viewBidsModalOpen} task={selectedTask}
         onClose={() => { setViewBidsModalOpen(false); setSelectedTask(null) }}
         onBidApproved={loadTasks}
+      />
+      <ConfirmModal
+        open={!!deleteTask}
+        onClose={() => setDeleteTask(null)}
+        onConfirm={confirmDelete}
+        title="Delete task?"
+        description={`"${deleteTask?.title}" will be permanently deleted. This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={deleteLoading}
       />
     </Layout>
   )

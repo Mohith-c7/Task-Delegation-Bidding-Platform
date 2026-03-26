@@ -5,8 +5,10 @@ import { taskService, Task } from '../services/taskService'
 import Layout from '../components/common/Layout'
 import TaskCard from '../components/tasks/TaskCard'
 import CreateTaskModal from '../components/tasks/CreateTaskModal'
+import EditTaskModal from '../components/tasks/EditTaskModal'
 import ViewBidsModal from '../components/bids/ViewBidsModal'
-import { Button, SkeletonCard, EmptyState } from '../design-system'
+import { Button, SkeletonCard, EmptyState, ConfirmModal } from '../design-system'
+import { useToast } from '../design-system'
 import { Plus, ClipboardList, CheckCircle2, Clock3, Circle } from 'lucide-react'
 
 const STATUS_SECTIONS = [
@@ -23,7 +25,11 @@ export default function MyTasks() {
   const [loading, setLoading] = useState(true)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [viewBidsModalOpen, setViewBidsModalOpen] = useState(false)
+  const [editTask, setEditTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [deleteTask, setDeleteTask] = useState<Task | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const { error: toastError } = useToast()
 
   useEffect(() => {
     if (!user) { navigate('/'); return }
@@ -43,10 +49,13 @@ export default function MyTasks() {
   }
 
   const handleViewBids = (task: Task) => { setSelectedTask(task); setViewBidsModalOpen(true) }
-  const handleDeleteTask = async (task: Task) => {
-    if (!confirm('Delete this task?')) return
-    try { await taskService.deleteTask(task.id); loadTasks() }
-    catch (e: any) { alert(e.response?.data?.error || 'Failed to delete task') }
+  const handleDeleteTask = (task: Task) => { setDeleteTask(task) }
+  const confirmDelete = async () => {
+    if (!deleteTask) return
+    setDeleteLoading(true)
+    try { await taskService.deleteTask(deleteTask.id); loadTasks(); setDeleteTask(null) }
+    catch (e: any) { toastError(e.response?.data?.error || 'Failed to delete task') }
+    finally { setDeleteLoading(false) }
   }
 
   const grouped = STATUS_SECTIONS.reduce((acc, s) => {
@@ -114,7 +123,7 @@ export default function MyTasks() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {sectionTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} isOwner onViewBids={handleViewBids} onDelete={handleDeleteTask} />
+                    <TaskCard key={task.id} task={task} isOwner onViewBids={handleViewBids} onEdit={t => setEditTask(t)} onDelete={handleDeleteTask} />
                   ))}
                 </div>
               </div>
@@ -124,10 +133,21 @@ export default function MyTasks() {
       )}
 
       <CreateTaskModal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} onSuccess={loadTasks} />
+      <EditTaskModal task={editTask} isOpen={!!editTask} onClose={() => setEditTask(null)} onSuccess={loadTasks} />
       <ViewBidsModal
         isOpen={viewBidsModalOpen} task={selectedTask}
         onClose={() => { setViewBidsModalOpen(false); setSelectedTask(null) }}
         onBidApproved={loadTasks}
+      />
+      <ConfirmModal
+        open={!!deleteTask}
+        onClose={() => setDeleteTask(null)}
+        onConfirm={confirmDelete}
+        title="Delete task?"
+        description={`"${deleteTask?.title}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteLoading}
       />
     </Layout>
   )

@@ -46,7 +46,7 @@ export default function Register() {
     try {
       const { confirmPassword: _, ...registerData } = formData
       const response = await authService.register(registerData)
-      setAuth(response.user, response.access_token)
+      setAuth(response.user, response.access_token, undefined, undefined, undefined, response.refresh_token)
       toast.success('Account created!', `Welcome to TaskFlow, ${response.user.name}`)
       navigate('/dashboard')
     } catch (err: any) {

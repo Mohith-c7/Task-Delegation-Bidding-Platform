@@ -26,7 +26,7 @@ func Load() *Config {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	jwtExpiry, _ := time.ParseDuration(getEnv("JWT_EXPIRY", "15m"))
+	jwtExpiry, _ := time.ParseDuration(getEnv("JWT_EXPIRY", "24h"))
 	refreshExpiry, _ := time.ParseDuration(getEnv("REFRESH_TOKEN_EXPIRY", "168h"))
 
 	return &Config{

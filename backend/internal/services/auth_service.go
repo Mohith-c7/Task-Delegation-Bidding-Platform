@@ -49,6 +49,11 @@ func (s *AuthService) SetEmailService(emailService *EmailService) {
 	s.emailService = emailService
 }
 
+// Config returns the service config (used by handlers for token generation).
+func (s *AuthService) Config() *config.Config {
+	return s.config
+}
+
 func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest) (*models.AuthResponse, error) {
 	// Check if email already exists
 	exists, err := s.userRepo.EmailExists(ctx, req.Email)

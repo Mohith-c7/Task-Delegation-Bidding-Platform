@@ -1,4 +1,5 @@
-import { Calendar, Clock, ChevronRight, Trash2, Eye, Gavel } from 'lucide-react'
+import { Calendar, Clock, ChevronRight, Trash2, Eye, Gavel, ExternalLink, Pencil } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Task } from '../../services/taskService'
 import { Card, StatusBadge, PriorityBadge, Button } from '../../design-system'
 import { cn } from '../../design-system/utils'
@@ -30,11 +31,13 @@ export default function TaskCard({
   task,
   onViewBids,
   onPlaceBid,
+  onEdit,
   onDelete,
   showActions = true,
   isOwner = false,
 }: TaskCardProps) {
   const deadline = formatDeadline(task.deadline)
+  const navigate = useNavigate()
 
   return (
     <Card
@@ -56,9 +59,14 @@ export default function TaskCard({
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-semibold text-text-primary leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-              {task.title}
-            </h4>
+            <button
+              onClick={() => navigate(`/tasks/${task.id}`)}
+              className="text-left w-full"
+            >
+              <h4 className="text-sm font-semibold text-text-primary leading-snug line-clamp-2 group-hover:text-primary transition-colors hover:underline underline-offset-2">
+                {task.title}
+              </h4>
+            </button>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <StatusBadge status={task.status} size="sm" />
@@ -116,6 +124,26 @@ export default function TaskCard({
                     View Bids
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate(`/tasks/${task.id}`)}
+                  className="text-text-tertiary hover:text-primary hover:bg-primary-light"
+                  title="Open task"
+                >
+                  <ExternalLink size={14} />
+                </Button>
+                {onEdit && task.status === 'open' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onEdit(task)}
+                    className="text-text-tertiary hover:text-warning hover:bg-warning/10"
+                    title="Edit task"
+                  >
+                    <Pencil size={14} />
+                  </Button>
+                )}
                 {onDelete && (
                   <Button
                     variant="ghost"
@@ -140,17 +168,15 @@ export default function TaskCard({
                     Place Bid
                   </Button>
                 )}
-                {onViewBids && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewBids(task)}
-                    rightIcon={<ChevronRight size={13} />}
-                    className={task.status !== 'open' ? 'flex-1' : ''}
-                  >
-                    Details
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/tasks/${task.id}`)}
+                  rightIcon={<ChevronRight size={13} />}
+                  className={task.status !== 'open' ? 'flex-1' : ''}
+                >
+                  Details
+                </Button>
               </>
             )}
           </div>

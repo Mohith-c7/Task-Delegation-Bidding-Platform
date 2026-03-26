@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import { bidService, Bid } from '../services/bidService'
 import Layout from '../components/common/Layout'
 import { Button, EmptyState } from '../design-system'
-import { Gavel, Clock, CheckCircle2, XCircle, Calendar, ArrowRight, Trophy } from 'lucide-react'
+import { Gavel, Clock, CheckCircle2, XCircle, Calendar, ArrowRight, Trophy, ExternalLink } from 'lucide-react'
 
 const STATUS_META = {
   pending:  { label: 'Pending',  color: 'text-warning',   bg: 'bg-warning/10',   border: 'border-warning/20',   dot: 'bg-warning',   icon: Clock },
@@ -127,7 +127,16 @@ export default function MyBids() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`w-2 h-2 rounded-full ${meta.dot} shrink-0`} />
-                      <p className="text-xs text-text-tertiary font-mono">Task #{bid.task_id.slice(0, 8)}</p>
+                      <p className="text-xs text-text-tertiary font-medium truncate">
+                        {bid.task_title || `Task #${bid.task_id.slice(0, 8)}`}
+                      </p>
+                      <button
+                        onClick={() => navigate(`/tasks/${bid.task_id}`)}
+                        className="text-text-tertiary hover:text-primary transition-colors ml-auto shrink-0"
+                        title="Open task"
+                      >
+                        <ExternalLink size={11} />
+                      </button>
                     </div>
                     <p className="text-sm font-medium text-text-primary line-clamp-2 mb-3">{bid.message}</p>
                     <div className="flex items-center gap-4 text-xs text-text-tertiary">

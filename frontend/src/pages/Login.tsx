@@ -19,7 +19,7 @@ export default function Login() {
     setLoading(true)
     try {
       const response = await authService.login({ email, password })
-      setAuth(response.user, response.access_token)
+      setAuth(response.user, response.access_token, undefined, undefined, undefined, response.refresh_token)
       toast.success('Welcome back!', `Signed in as ${response.user.name}`)
       navigate('/dashboard')
     } catch (err: any) {
