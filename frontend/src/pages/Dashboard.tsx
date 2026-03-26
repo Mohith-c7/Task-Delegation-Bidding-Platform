@@ -24,7 +24,7 @@ export default function Dashboard() {
   const { user } = useAuthStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<string>('open')
+  const [filter, setFilter] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [bidModalOpen, setBidModalOpen] = useState(false)
