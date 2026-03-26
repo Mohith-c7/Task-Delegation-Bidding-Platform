@@ -115,8 +115,8 @@ export default function OrgSettings() {
   })
 
   const filteredMembers = members.filter(m =>
-    m.user_name.toLowerCase().includes(memberSearch.toLowerCase()) ||
-    m.user_email.toLowerCase().includes(memberSearch.toLowerCase())
+    (m.user_name || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+    (m.user_email || '').toLowerCase().includes(memberSearch.toLowerCase())
   )
 
   const pendingInvites = invitations.filter(i => i.status === 'pending')
