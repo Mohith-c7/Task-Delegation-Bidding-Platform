@@ -19,12 +19,12 @@ func NewBidRepository(db *pgxpool.Pool) *BidRepository {
 
 func (r *BidRepository) Create(ctx context.Context, bid *models.Bid) error {
 	query := `
-		INSERT INTO bids (task_id, bidder_id, message, estimated_completion, status)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO bids (task_id, bidder_id, message, estimated_completion, status, answers)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
-		bid.TaskID, bid.BidderID, bid.Message, bid.EstimatedCompletion, bid.Status,
+		bid.TaskID, bid.BidderID, bid.Message, bid.EstimatedCompletion, bid.Status, bid.Answers,
 	).Scan(&bid.ID, &bid.CreatedAt, &bid.UpdatedAt)
 }
 
@@ -32,12 +32,12 @@ func (r *BidRepository) GetByID(ctx context.Context, id string) (*models.Bid, er
 	bid := &models.Bid{}
 	query := `
 		SELECT id, task_id, bidder_id, message, estimated_completion, 
-		       status, approved_by, created_at, updated_at
+		       status, answers, approved_by, created_at, updated_at
 		FROM bids WHERE id = $1
 	`
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&bid.ID, &bid.TaskID, &bid.BidderID, &bid.Message, &bid.EstimatedCompletion,
-		&bid.Status, &bid.ApprovedBy, &bid.CreatedAt, &bid.UpdatedAt,
+		&bid.Status, &bid.Answers, &bid.ApprovedBy, &bid.CreatedAt, &bid.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -51,7 +51,7 @@ func (r *BidRepository) GetByID(ctx context.Context, id string) (*models.Bid, er
 func (r *BidRepository) GetByTaskID(ctx context.Context, taskID string) ([]*models.BidWithDetails, error) {
 	query := `
 		SELECT b.id, b.task_id, b.bidder_id, b.message, b.estimated_completion,
-		       b.status, b.approved_by, b.created_at, b.updated_at,
+		       b.status, b.answers, b.approved_by, b.created_at, b.updated_at,
 		       u.name, u.email
 		FROM bids b
 		JOIN users u ON b.bidder_id = u.id
@@ -69,7 +69,7 @@ func (r *BidRepository) GetByTaskID(ctx context.Context, taskID string) ([]*mode
 		bid := &models.BidWithDetails{}
 		err := rows.Scan(
 			&bid.ID, &bid.TaskID, &bid.BidderID, &bid.Message, &bid.EstimatedCompletion,
-			&bid.Status, &bid.ApprovedBy, &bid.CreatedAt, &bid.UpdatedAt,
+			&bid.Status, &bid.Answers, &bid.ApprovedBy, &bid.CreatedAt, &bid.UpdatedAt,
 			&bid.BidderName, &bid.BidderEmail,
 		)
 		if err != nil {
@@ -84,7 +84,7 @@ func (r *BidRepository) GetByTaskID(ctx context.Context, taskID string) ([]*mode
 func (r *BidRepository) GetByBidderID(ctx context.Context, bidderID string) ([]*models.Bid, error) {
 	query := `
 		SELECT id, task_id, bidder_id, message, estimated_completion,
-		       status, approved_by, created_at, updated_at
+		       status, answers, approved_by, created_at, updated_at
 		FROM bids WHERE bidder_id = $1
 		ORDER BY created_at DESC
 	`
@@ -99,7 +99,7 @@ func (r *BidRepository) GetByBidderID(ctx context.Context, bidderID string) ([]*
 		bid := &models.Bid{}
 		err := rows.Scan(
 			&bid.ID, &bid.TaskID, &bid.BidderID, &bid.Message, &bid.EstimatedCompletion,
-			&bid.Status, &bid.ApprovedBy, &bid.CreatedAt, &bid.UpdatedAt,
+			&bid.Status, &bid.Answers, &bid.ApprovedBy, &bid.CreatedAt, &bid.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err

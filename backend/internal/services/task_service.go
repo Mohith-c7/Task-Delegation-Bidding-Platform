@@ -33,6 +33,7 @@ func (s *TaskService) CreateTask(ctx context.Context, req *models.CreateTaskRequ
 		Title:       req.Title,
 		Description: req.Description,
 		Skills:      req.Skills,
+		Questions:   req.Questions,
 		Deadline:    req.Deadline,
 		Priority:    req.Priority,
 		Status:      models.StatusOpen,
@@ -80,6 +81,9 @@ func (s *TaskService) UpdateTask(ctx context.Context, id string, req *models.Upd
 	}
 	if len(req.Skills) > 0 {
 		task.Skills = req.Skills
+	}
+	if len(req.Questions) > 0 {
+		task.Questions = req.Questions
 	}
 	if !req.Deadline.IsZero() {
 		task.Deadline = req.Deadline

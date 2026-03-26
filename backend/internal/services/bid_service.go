@@ -58,6 +58,7 @@ func (s *BidService) CreateBid(ctx context.Context, taskID string, req *models.C
 		Message:             req.Message,
 		EstimatedCompletion: req.EstimatedCompletion,
 		Status:              models.BidPending,
+		Answers:             req.Answers,
 	}
 
 	if err := s.bidRepo.Create(ctx, bid); err != nil {

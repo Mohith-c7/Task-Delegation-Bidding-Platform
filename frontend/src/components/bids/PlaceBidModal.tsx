@@ -13,8 +13,13 @@ interface PlaceBidModalProps {
 
 export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: PlaceBidModalProps) {
   const [formData, setFormData] = useState({ message: '', estimated_completion: '' })
+  const [answers, setAnswers] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const handleAnswerChange = (question: string, value: string) => {
+    setAnswers(prev => ({ ...prev, [question]: value }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,10 +30,12 @@ export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: Plac
       await bidService.placeBid(task.id, {
         message: formData.message,
         estimated_completion: new Date(formData.estimated_completion).toISOString(),
+        answers: Object.keys(answers).length > 0 ? answers : undefined,
       })
       onSuccess()
       onClose()
       setFormData({ message: '', estimated_completion: '' })
+      setAnswers({})
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to place bid')
     } finally {
@@ -52,6 +59,7 @@ export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: Plac
           </div>
         </div>
         <button
+          type="button"
           onClick={onClose}
           className="w-8 h-8 rounded-xl bg-surface-3 hover:bg-surface-2 border border-border flex items-center justify-center transition-colors"
         >
@@ -68,7 +76,7 @@ export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: Plac
         <p className="text-xs text-text-secondary line-clamp-2 mb-3 leading-relaxed">{task.description}</p>
         <div className="flex items-center gap-2 flex-wrap">
           <PriorityBadge priority={task.priority} size="sm" />
-          {task.skills.slice(0, 3).map((s, i) => (
+          {task.skills?.slice(0, 3).map((s, i) => (
             <span key={i} className="inline-flex items-center gap-1 text-[10px] text-primary bg-primary/8 border border-primary/15 px-2 py-0.5 rounded-lg font-medium">
               <Tag size={8} />{s}
             </span>
@@ -88,19 +96,40 @@ export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: Plac
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Questionnaire provided by Task Owner */}
+        {task.questions && task.questions.length > 0 && (
+          <div className="space-y-3 bg-primary/5 p-4 rounded-xl border border-primary/10 mb-4">
+            <h4 className="text-xs font-bold text-primary flex items-center gap-1.5">Task Questionnaire</h4>
+            {task.questions.map((q, i) => (
+              <div key={i} className="space-y-1.5">
+                <label className="text-xs font-medium text-text-secondary">Q{i + 1}. {q}</label>
+                <Textarea
+                  value={answers[q] || ''}
+                  onChange={e => handleAnswerChange(q, e.target.value)}
+                  placeholder="Your answer..."
+                  rows={2}
+                  required
+                  disabled={loading}
+                  className="bg-white"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-text-secondary">Your Proposal</label>
+          <label className="text-xs font-semibold text-text-secondary">Your Proposal / Cover Letter</label>
           <Textarea
             value={formData.message}
             onChange={e => setFormData({ ...formData, message: e.target.value })}
             placeholder="Explain your approach, relevant experience, and why you're the best fit for this task..."
-            rows={5} required disabled={loading}
+            rows={task.questions?.length ? 3 : 5} required disabled={loading}
           />
         </div>
 
         <div className="space-y-1.5">
           <label className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
-            <Calendar size={11} className="text-text-tertiary" /> Estimated Completion
+            <Calendar size={11} className="text-text-tertiary" /> Estimated Completion Date
           </label>
           <Input
             type="datetime-local"
@@ -110,7 +139,7 @@ export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: Plac
           />
         </div>
 
-        <div className="flex gap-3 pt-2 border-t border-border">
+        <div className="flex gap-3 pt-2 border-t border-border mt-4">
           <Button type="button" variant="ghost" onClick={onClose} disabled={loading} className="flex-1">
             Cancel
           </Button>

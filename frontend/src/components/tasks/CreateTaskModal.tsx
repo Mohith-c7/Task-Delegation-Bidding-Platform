@@ -19,9 +19,18 @@ const PRIORITY_OPTIONS = [
 
 export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTaskModalProps) {
   const [formData, setFormData] = useState({ title: '', description: '', skills: '', deadline: '', priority: 'medium' })
+  const [questions, setQuestions] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const orgID = useAuthStore(s => s.orgID)
+
+  const handleAddQuestion = () => setQuestions([...questions, ''])
+  const handleRemoveQuestion = (index: number) => setQuestions(questions.filter((_, i) => i !== index))
+  const handleQuestionChange = (index: number, value: string) => {
+    const newQ = [...questions]
+    newQ[index] = value
+    setQuestions(newQ)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,15 +38,18 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
     setLoading(true)
     try {
       const skillsArray = formData.skills ? formData.skills.split(',').map(s => s.trim()).filter(Boolean) : []
+      const filledQuestions = questions.filter(q => q.trim() !== '')
       await taskService.createTask({
         ...formData,
         deadline: new Date(formData.deadline).toISOString(),
         skills: skillsArray,
+        questions: filledQuestions,
         ...(orgID ? { org_id: orgID } : {}),
       })
       onSuccess()
       onClose()
       setFormData({ title: '', description: '', skills: '', deadline: '', priority: 'medium' })
+      setQuestions([])
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create task')
     } finally {
@@ -61,10 +73,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
             <p className="text-xs text-text-tertiary">Post a task for your team to bid on</p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 rounded-xl bg-surface-3 hover:bg-surface-2 border border-border flex items-center justify-center transition-colors"
-        >
+        <button type="button" onClick={onClose} className="w-8 h-8 rounded-xl bg-surface-3 hover:bg-surface-2 border border-border flex items-center justify-center transition-colors">
           <X size={15} className="text-text-secondary" />
         </button>
       </div>
@@ -121,6 +130,39 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
                 <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/8 text-primary text-xs font-medium rounded-lg border border-primary/15">
                   <Tag size={9} />{skill}
                 </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Questionnaire */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
+              <FileText size={11} className="text-text-tertiary" /> Questionnaire (Optional)
+            </label>
+            <Button type="button" variant="secondary" size="sm" onClick={handleAddQuestion} disabled={loading} leftIcon={<Plus size={12} />}>
+              Add Question
+            </Button>
+          </div>
+          {questions.length === 0 ? (
+            <p className="text-xs text-text-tertiary">Ask bidders specific questions (e.g., "What is your approach to this task?").</p>
+          ) : (
+            <div className="space-y-2">
+              {questions.map((q, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <span className="text-xs font-medium text-text-secondary shrink-0">Q{i + 1}.</span>
+                  <Input
+                    value={q}
+                    onChange={e => handleQuestionChange(i, e.target.value)}
+                    placeholder="Enter your question here"
+                    className="flex-1"
+                    disabled={loading}
+                  />
+                  <button type="button" onClick={() => handleRemoveQuestion(i)} className="text-error/70 hover:text-error p-2 shrink-0">
+                    <X size={14} />
+                  </button>
+                </div>
               ))}
             </div>
           )}

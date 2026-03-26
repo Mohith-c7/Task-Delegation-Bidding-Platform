@@ -25,6 +25,7 @@ type Task struct {
 	Title       string       `json:"title"`
 	Description string       `json:"description"`
 	Skills      []string     `json:"skills"`
+	Questions   []string     `json:"questions"`
 	Deadline    time.Time    `json:"deadline"`
 	Priority    TaskPriority `json:"priority"`
 	Status      TaskStatus   `json:"status"`
@@ -39,6 +40,7 @@ type CreateTaskRequest struct {
 	Title       string       `json:"title" binding:"required,min=3,max=255"`
 	Description string       `json:"description" binding:"required,min=10"`
 	Skills      []string     `json:"skills" binding:"omitempty"`
+	Questions   []string     `json:"questions" binding:"omitempty"`
 	Deadline    time.Time    `json:"deadline" binding:"required"`
 	Priority    TaskPriority `json:"priority" binding:"required,oneof=low medium high critical"`
 	OrgID       string       `json:"org_id"`
@@ -48,6 +50,7 @@ type UpdateTaskRequest struct {
 	Title       string       `json:"title" binding:"omitempty,min=3,max=255"`
 	Description string       `json:"description" binding:"omitempty,min=10"`
 	Skills      []string     `json:"skills" binding:"omitempty,min=1"`
+	Questions   []string     `json:"questions" binding:"omitempty"`
 	Deadline    time.Time    `json:"deadline" binding:"omitempty"`
 	Priority    TaskPriority `json:"priority" binding:"omitempty,oneof=low medium high critical"`
 	Status      TaskStatus   `json:"status" binding:"omitempty,oneof=open assigned in_progress completed closed"`

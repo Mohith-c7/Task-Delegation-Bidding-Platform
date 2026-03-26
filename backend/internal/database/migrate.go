@@ -227,6 +227,10 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url  TEXT;`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS notif_prefs JSONB   DEFAULT '{}';`,
 
+		// 000017: Add questionnaire support
+		`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS questions TEXT[] DEFAULT '{}';`,
+		`ALTER TABLE bids ADD COLUMN IF NOT EXISTS answers JSONB DEFAULT '{}';`,
+
 		// SEED DATA — realistic users, tasks, and bids so the platform never looks empty
 		`DO $$ BEGIN
 

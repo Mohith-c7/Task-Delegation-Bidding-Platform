@@ -8,6 +8,7 @@ export interface Bid {
   message: string
   estimated_completion: string
   status: 'pending' | 'approved' | 'rejected'
+  answers?: Record<string, string>
   approved_by: string | null
   created_at: string
   updated_at: string
@@ -21,6 +22,7 @@ export interface BidWithDetails extends Bid {
 export interface CreateBidRequest {
   message: string
   estimated_completion: string
+  answers?: Record<string, string>
 }
 
 export const bidService = {

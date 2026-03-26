@@ -154,8 +154,24 @@ export default function ViewBidsModal({ isOpen, task, onClose, onBidApproved }: 
                       </span>
                     </div>
 
-                    {/* Message */}
-                    <p className="text-sm text-text-secondary leading-relaxed mb-3">{bid.message}</p>
+                    {/* Questionnaire Answers */}
+                    {bid.answers && Object.keys(bid.answers).length > 0 && (
+                      <div className="mb-4 space-y-3 bg-primary/5 p-4 rounded-xl border border-primary/10">
+                        <h4 className="text-xs font-bold text-primary flex items-center gap-1.5">Questionnaire Responses</h4>
+                        {Object.entries(bid.answers).map(([q, a], i) => (
+                          <div key={i} className="space-y-1">
+                            <p className="text-xs font-semibold text-text-secondary">Q{i + 1}. {q}</p>
+                            <p className="text-sm text-text-primary bg-white/60 p-2.5 rounded-lg border border-border/50 break-words">{a}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Message / Cover Letter */}
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-text-tertiary mb-1">Proposal / Cover Letter</p>
+                      <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{bid.message}</p>
+                    </div>
 
                     {/* Meta */}
                     <div className="flex items-center gap-4 text-xs text-text-tertiary">

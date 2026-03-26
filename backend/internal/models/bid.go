@@ -16,15 +16,17 @@ type Bid struct {
 	BidderID            string    `json:"bidder_id"`
 	Message             string    `json:"message"`
 	EstimatedCompletion time.Time `json:"estimated_completion"`
-	Status              BidStatus `json:"status"`
-	ApprovedBy          *string   `json:"approved_by"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	Status              BidStatus            `json:"status"`
+	Answers             map[string]string    `json:"answers"`
+	ApprovedBy          *string              `json:"approved_by"`
+	CreatedAt           time.Time            `json:"created_at"`
+	UpdatedAt           time.Time            `json:"updated_at"`
 }
 
 type CreateBidRequest struct {
-	Message             string    `json:"message" binding:"required,min=10"`
-	EstimatedCompletion time.Time `json:"estimated_completion" binding:"required"`
+	Message             string            `json:"message" binding:"required,min=10"`
+	EstimatedCompletion time.Time         `json:"estimated_completion" binding:"required"`
+	Answers             map[string]string `json:"answers" binding:"omitempty"`
 }
 
 type BidWithDetails struct {

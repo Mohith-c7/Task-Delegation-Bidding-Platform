@@ -5,6 +5,7 @@ export interface Task {
   title: string
   description: string
   skills: string[]
+  questions: string[]
   deadline: string
   priority: 'low' | 'medium' | 'high' | 'critical'
   status: 'open' | 'assigned' | 'in_progress' | 'completed' | 'closed'
@@ -18,6 +19,7 @@ export interface CreateTaskRequest {
   title: string
   description: string
   skills: string[]
+  questions?: string[]
   deadline: string
   priority: string
   org_id?: string
