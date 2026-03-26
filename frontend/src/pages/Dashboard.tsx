@@ -9,7 +9,7 @@ import PlaceBidModal from '../components/bids/PlaceBidModal'
 import ViewBidsModal from '../components/bids/ViewBidsModal'
 import { Button, SkeletonCard, EmptyState, ConfirmModal } from '../design-system'
 import { useToast } from '../design-system'
-import { Plus, LayoutGrid, List, TrendingUp, CheckCircle2, Clock3, Layers } from 'lucide-react'
+import { Plus, LayoutGrid, List, TrendingUp, CheckCircle2, Clock3, Layers, AlertCircle } from 'lucide-react'
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
@@ -19,11 +19,133 @@ const STATUS_FILTERS = [
   { value: 'completed', label: 'Completed' },
 ]
 
+// Hardcoded seed tasks shown when API returns empty or fails
+const SEED_TASKS: Task[] = [
+  {
+    id: 'seed-1',
+    title: 'Build a real-time chat feature for our SaaS dashboard',
+    description: 'We need a real-time chat module integrated into our existing React dashboard. Requirements: WebSocket support, message history, online presence indicators, typing indicators, and mobile-responsive UI. Must integrate with our existing auth system.',
+    skills: ['React', 'TypeScript', 'WebSockets', 'Node.js'],
+    deadline: new Date(Date.now() + 14 * 86400000).toISOString(),
+    priority: 'high',
+    status: 'open',
+    owner_id: '00000000-0000-0000-0000-000000000001',
+    assigned_to: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'seed-2',
+    title: 'Migrate PostgreSQL database to multi-tenant architecture',
+    description: 'Our single-tenant Postgres DB needs to be migrated to a multi-tenant schema using row-level security (RLS). Must maintain zero downtime, write migration scripts, update all queries, and document the new schema thoroughly.',
+    skills: ['PostgreSQL', 'Go', 'Database Design', 'RLS'],
+    deadline: new Date(Date.now() + 21 * 86400000).toISOString(),
+    priority: 'critical',
+    status: 'open',
+    owner_id: '00000000-0000-0000-0000-000000000002',
+    assigned_to: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'seed-3',
+    title: 'Design and implement a mobile-first onboarding flow',
+    description: 'Create a beautiful 5-step onboarding wizard for new users. Steps: account setup, team invite, first task creation, notification preferences, and completion celebration. Must work on iOS and Android via React Native.',
+    skills: ['React Native', 'UI/UX', 'Figma', 'TypeScript'],
+    deadline: new Date(Date.now() + 10 * 86400000).toISOString(),
+    priority: 'medium',
+    status: 'open',
+    owner_id: '00000000-0000-0000-0000-000000000003',
+    assigned_to: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'seed-4',
+    title: 'Set up CI/CD pipeline with GitHub Actions and Kubernetes',
+    description: 'Implement a full CI/CD pipeline: automated testing on PR, Docker image build and push to ECR, blue-green deployment to EKS, Slack notifications on deploy, and rollback capability. Include staging and production environments.',
+    skills: ['DevOps', 'Kubernetes', 'GitHub Actions', 'Docker', 'AWS'],
+    deadline: new Date(Date.now() + 7 * 86400000).toISOString(),
+    priority: 'high',
+    status: 'open',
+    owner_id: '00000000-0000-0000-0000-000000000004',
+    assigned_to: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'seed-5',
+    title: 'Implement Stripe payment integration with escrow',
+    description: 'Integrate Stripe Connect for marketplace payments. Features: task budget setting, escrow on bid approval, automatic release on completion, dispute handling, payout to workers, and invoice generation. Must be PCI compliant.',
+    skills: ['Node.js', 'Stripe', 'TypeScript', 'PostgreSQL'],
+    deadline: new Date(Date.now() + 18 * 86400000).toISOString(),
+    priority: 'critical',
+    status: 'open',
+    owner_id: '00000000-0000-0000-0000-000000000005',
+    assigned_to: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'seed-6',
+    title: 'Security audit and penetration testing',
+    description: 'Conduct a comprehensive security audit: SQL injection testing, XSS vulnerability scan, CSRF protection review, JWT security analysis, rate limiting verification, and dependency vulnerability scan. Provide detailed report with fixes.',
+    skills: ['Security', 'Penetration Testing', 'Go', 'PostgreSQL'],
+    deadline: new Date(Date.now() + 11 * 86400000).toISOString(),
+    priority: 'critical',
+    status: 'open',
+    owner_id: '00000000-0000-0000-0000-000000000006',
+    assigned_to: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'seed-7',
+    title: 'Build ML model for task priority prediction',
+    description: 'Train a machine learning model that predicts the optimal priority level for new tasks based on title, description, historical data, and team workload. Expose as a REST API endpoint. Use Python with scikit-learn or PyTorch.',
+    skills: ['Python', 'Machine Learning', 'scikit-learn', 'REST API'],
+    deadline: new Date(Date.now() + 30 * 86400000).toISOString(),
+    priority: 'medium',
+    status: 'open',
+    owner_id: '00000000-0000-0000-0000-000000000007',
+    assigned_to: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'seed-8',
+    title: 'Fix authentication bug causing session expiry on mobile',
+    description: 'Users on mobile devices are being logged out after 15 minutes despite selecting "remember me". Root cause appears to be in the JWT refresh token flow. Needs investigation and fix across iOS, Android, and mobile web.',
+    skills: ['React Native', 'JWT', 'Node.js', 'Debugging'],
+    deadline: new Date(Date.now() + 3 * 86400000).toISOString(),
+    priority: 'critical',
+    status: 'in_progress',
+    owner_id: '00000000-0000-0000-0000-000000000001',
+    assigned_to: '00000000-0000-0000-0000-000000000003',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'seed-9',
+    title: 'Implement dark mode with system preference detection',
+    description: 'Add full dark mode support to the React frontend. Must respect system preference, allow manual toggle, persist preference, and ensure all components look great in both modes. Use CSS custom properties.',
+    skills: ['React', 'CSS', 'TypeScript', 'UI/UX'],
+    deadline: new Date(Date.now() + 6 * 86400000).toISOString(),
+    priority: 'low',
+    status: 'open',
+    owner_id: '00000000-0000-0000-0000-000000000008',
+    assigned_to: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -42,19 +164,44 @@ export default function Dashboard() {
   const loadTasks = async () => {
     try {
       setLoading(true)
+      setApiError(null)
       const data = await taskService.getAllTasks(filter === 'all' ? '' : filter)
-      setTasks(data || [])
-    } catch (error) {
+      // Merge API tasks with seed tasks (API tasks take precedence, seeds fill the rest)
+      if (data && data.length > 0) {
+        setTasks(data)
+      } else {
+        // API returned empty — show seed tasks filtered by status
+        const filtered = filter === 'all'
+          ? SEED_TASKS
+          : SEED_TASKS.filter(t => t.status === filter)
+        setTasks(filtered)
+      }
+    } catch (error: any) {
       console.error('Failed to load tasks:', error)
-      setTasks([])
+      const msg = error?.response?.data?.error || error?.message || 'Failed to load tasks'
+      setApiError(msg)
+      // Still show seed data so the dashboard doesn't look empty
+      const filtered = filter === 'all'
+        ? SEED_TASKS
+        : SEED_TASKS.filter(t => t.status === filter)
+      setTasks(filtered)
     } finally {
       setLoading(false)
     }
   }
 
-  const handlePlaceBid = (task: Task) => { setSelectedTask(task); setBidModalOpen(true) }
-  const handleViewBids = (task: Task) => { setSelectedTask(task); setViewBidsModalOpen(true) }
-  const handleDeleteTask = async (task: Task) => { setDeleteTask(task) }
+  const handlePlaceBid = (task: Task) => {
+    if (task.id.startsWith('seed-')) { toastError('This is a demo task — create a real task to bid on it'); return }
+    setSelectedTask(task); setBidModalOpen(true)
+  }
+  const handleViewBids = (task: Task) => {
+    if (task.id.startsWith('seed-')) { toastError('This is a demo task — create a real task to view bids'); return }
+    setSelectedTask(task); setViewBidsModalOpen(true)
+  }
+  const handleDeleteTask = async (task: Task) => {
+    if (task.id.startsWith('seed-')) { toastError('Demo tasks cannot be deleted'); return }
+    setDeleteTask(task)
+  }
   const confirmDelete = async () => {
     if (!deleteTask) return
     setDeleteLoading(true)
@@ -87,6 +234,14 @@ export default function Dashboard() {
             Create Task
           </Button>
         </div>
+
+        {/* API error banner */}
+        {apiError && (
+          <div className="flex items-center gap-2 mb-4 px-4 py-3 bg-error/8 border border-error/20 rounded-xl text-sm text-error">
+            <AlertCircle size={15} className="shrink-0" />
+            <span><strong>API issue:</strong> {apiError} — showing demo tasks below.</span>
+          </div>
+        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
