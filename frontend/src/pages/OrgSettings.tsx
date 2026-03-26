@@ -7,6 +7,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import Layout from '../components/common/Layout'
+import CreateOrgModal from '../components/common/CreateOrgModal'
 import { Button, Card, Badge, Input, Avatar, ConfirmModal } from '../design-system'
 import { useAuthStore } from '../store/authStore'
 import { useRBAC } from '../hooks/useRBAC'
@@ -38,6 +39,7 @@ export default function OrgSettings() {
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [orgName, setOrgName] = useState('')
+  const [createOrgOpen, setCreateOrgOpen] = useState(false)
 
   const orgID = useAuthStore(s => s.orgID)
   const { user } = useAuthStore()
@@ -138,10 +140,15 @@ export default function OrgSettings() {
           </div>
           <h2 className="text-xl font-bold text-text-primary mb-2">No organization yet</h2>
           <p className="text-text-secondary mb-6">Create an organization to manage your team, invite members, and collaborate on tasks.</p>
-          <Button variant="primary" leftIcon={<Zap size={16} />} onClick={() => {/* TODO: create org modal */}}>
+          <Button variant="primary" leftIcon={<Zap size={16} />} onClick={() => setCreateOrgOpen(true)}>
             Create Organization
           </Button>
         </div>
+        <CreateOrgModal
+          open={createOrgOpen}
+          onClose={() => setCreateOrgOpen(false)}
+          onSuccess={() => window.location.reload()}
+        />
       </Layout>
     )
   }

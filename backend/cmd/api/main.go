@@ -108,7 +108,7 @@ func main() {
 	taskHandler := handlers.NewTaskHandler(taskService)
 	bidHandler := handlers.NewBidHandler(bidService)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
-	orgHandler := handlers.NewOrgHandler(orgService)
+	orgHandler := handlers.NewOrgHandlerWithConfig(orgService, cfg)
 	billingHandler := handlers.NewBillingHandler(billingService)
 	notifHandler := handlers.NewNotificationHandler(notifService)
 

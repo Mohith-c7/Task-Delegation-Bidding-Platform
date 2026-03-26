@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yourusername/task-delegation-platform/internal/config"
 	"github.com/yourusername/task-delegation-platform/internal/models"
 	"github.com/yourusername/task-delegation-platform/internal/services"
 	"github.com/yourusername/task-delegation-platform/internal/utils"
@@ -13,10 +14,15 @@ import (
 
 type OrgHandler struct {
 	orgService *services.OrgService
+	cfg        *config.Config
 }
 
 func NewOrgHandler(orgService *services.OrgService) *OrgHandler {
 	return &OrgHandler{orgService: orgService}
+}
+
+func NewOrgHandlerWithConfig(orgService *services.OrgService, cfg *config.Config) *OrgHandler {
+	return &OrgHandler{orgService: orgService, cfg: cfg}
 }
 
 // POST /orgs
@@ -31,12 +37,24 @@ func (h *OrgHandler) CreateOrg(c *gin.Context) {
 	}
 
 	userID := c.GetString("user_id")
+	userEmail := c.GetString("user_email")
 	org, err := h.orgService.CreateOrg(c.Request.Context(), userID, req.Name, req.LogoURL)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	utils.SuccessResponse(c, http.StatusCreated, "Organization created", org)
+
+	// Mint a fresh access token that includes the new org_id + role
+	// so the frontend can use it immediately without re-login
+	var newAccessToken string
+	if h.cfg != nil {
+		newAccessToken, _ = utils.GenerateAccessToken(userID, userEmail, org.ID, string(models.RoleOrgAdmin), h.cfg.JWTSecret)
+	}
+
+	utils.SuccessResponse(c, http.StatusCreated, "Organization created", gin.H{
+		"org":          org,
+		"access_token": newAccessToken,
+	})
 }
 
 // GET /orgs/:id

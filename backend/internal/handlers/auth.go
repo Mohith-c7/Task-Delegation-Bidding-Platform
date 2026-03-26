@@ -233,8 +233,8 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// Issue new access token
-	accessToken, err := utils.GenerateToken(claims.UserID, claims.Email, claims.OrgID, h.authService.Config().JWTSecret, h.authService.Config().JWTExpiry)
+	// Issue new access token (preserve org_id + role from refresh token claims)
+	accessToken, err := utils.GenerateAccessToken(claims.UserID, claims.Email, claims.OrgID, claims.Role, h.authService.Config().JWTSecret)
 	if err != nil {
 		utils.ErrorResponse(c, 500, "Failed to generate token")
 		return

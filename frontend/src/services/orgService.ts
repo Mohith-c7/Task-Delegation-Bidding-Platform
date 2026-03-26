@@ -31,9 +31,12 @@ export interface Invitation {
 }
 
 export const orgService = {
-  async createOrg(name: string, logoURL?: string): Promise<Organization> {
+  async createOrg(name: string, logoURL?: string): Promise<{ org: Organization; accessToken: string }> {
     const res = await api.post('/orgs', { name, logo_url: logoURL })
-    return res.data.data
+    return {
+      org: res.data.data.org,
+      accessToken: res.data.data.access_token ?? '',
+    }
   },
 
   async getOrg(id: string): Promise<Organization> {
