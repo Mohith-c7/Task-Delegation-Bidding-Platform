@@ -166,10 +166,10 @@ func (r *TaskRepository) GetByOrgID(ctx context.Context, orgID, status string) (
 	var query string
 	var args []interface{}
 	if status != "" {
-		query = `SELECT id, title, description, skills, deadline, priority, status, org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE org_id = $1 AND status = $2 ORDER BY created_at DESC`
+		query = `SELECT id, title, description, skills, deadline, priority, status, COALESCE(org_id, '') as org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE org_id = $1 AND status = $2 ORDER BY created_at DESC`
 		args = []interface{}{orgID, status}
 	} else {
-		query = `SELECT id, title, description, skills, deadline, priority, status, org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE org_id = $1 ORDER BY created_at DESC`
+		query = `SELECT id, title, description, skills, deadline, priority, status, COALESCE(org_id, '') as org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE org_id = $1 ORDER BY created_at DESC`
 		args = []interface{}{orgID}
 	}
 	rows, err := r.db.Query(ctx, query, args...)
@@ -367,7 +367,7 @@ func (r *TaskRepository) SearchTasks(ctx context.Context, p TaskSearchParams) (*
 
 	// Fetch page
 	dataQuery := fmt.Sprintf(
-		`SELECT id, title, description, skills, deadline, priority, status, org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE %s ORDER BY %s LIMIT $%d OFFSET $%d`,
+		`SELECT id, title, description, skills, deadline, priority, status, COALESCE(org_id, '') as org_id, owner_id, assigned_to, created_at, updated_at FROM tasks WHERE %s ORDER BY %s LIMIT $%d OFFSET $%d`,
 		whereClause, orderBy, argIdx, argIdx+1,
 	)
 	args = append(args, p.PageSize, offset)
