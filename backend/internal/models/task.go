@@ -32,6 +32,8 @@ type Task struct {
 	OrgID       string       `json:"org_id,omitempty"`
 	OwnerID     string       `json:"owner_id"`
 	AssignedTo  *string      `json:"assigned_to"`
+	Rating      *int         `json:"rating,omitempty"`
+	Points      *int         `json:"points,omitempty"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
@@ -70,4 +72,9 @@ var AllowedTransitions = map[TaskStatus][]TaskStatus{
 	StatusAssigned:   {StatusInProgress},
 	StatusInProgress: {StatusCompleted},
 	StatusCompleted:  {StatusClosed},
+}
+
+type RateTaskRequest struct {
+	Rating int `json:"rating" binding:"required,min=1,max=5"`
+	Points int `json:"points" binding:"required,min=0,max=10000"`
 }

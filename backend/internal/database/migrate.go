@@ -231,6 +231,13 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS questions TEXT[] DEFAULT '{}';`,
 		`ALTER TABLE bids ADD COLUMN IF NOT EXISTS answers JSONB DEFAULT '{}';`,
 
+		// 000018: Add ratings and points support
+		`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rating INT;`,
+		`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS points INT;`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_points INT DEFAULT 0;`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_sum INT DEFAULT 0;`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_count INT DEFAULT 0;`,
+
 		// SEED DATA — realistic users, tasks, and bids so the platform never looks empty
 		`DO $$ BEGIN
 

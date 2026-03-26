@@ -11,6 +11,9 @@ type User struct {
 	PasswordHash  string     `json:"-"` // Never send password hash in JSON
 	EmailVerified bool       `json:"email_verified"`
 	VerifiedAt    *time.Time `json:"verified_at,omitempty"`
+	TotalPoints   int        `json:"total_points"`
+	RatingSum     int        `json:"rating_sum"`
+	RatingCount   int        `json:"rating_count"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
