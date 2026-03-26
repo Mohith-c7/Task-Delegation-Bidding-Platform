@@ -21,7 +21,7 @@ const STATUS_FILTERS = [
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, orgID } = useAuthStore()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
@@ -42,7 +42,7 @@ export default function Dashboard() {
   const loadTasks = async () => {
     try {
       setLoading(true)
-      const data = await taskService.getAllTasks(filter === 'all' ? '' : filter)
+      const data = await taskService.getAllTasks(filter === 'all' ? '' : filter, orgID ?? undefined)
       setTasks(data || [])
     } catch (error) {
       console.error('Failed to load tasks:', error)

@@ -20,11 +20,14 @@ export interface CreateTaskRequest {
   skills: string[]
   deadline: string
   priority: string
+  org_id?: string
 }
 
 export const taskService = {
-  async getAllTasks(status?: string): Promise<Task[]> {
-    const params = status ? { status } : {}
+  async getAllTasks(status?: string, orgId?: string): Promise<Task[]> {
+    const params: Record<string, string> = {}
+    if (status) params.status = status
+    if (orgId) params.org_id = orgId
     const response = await api.get('/tasks', { params })
     // Backend may return { data: Task[] } or { data: { tasks: Task[], total: number } }
     const payload = response.data.data

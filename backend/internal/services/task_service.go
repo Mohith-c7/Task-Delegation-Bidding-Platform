@@ -37,6 +37,7 @@ func (s *TaskService) CreateTask(ctx context.Context, req *models.CreateTaskRequ
 		Priority:    req.Priority,
 		Status:      models.StatusOpen,
 		OwnerID:     ownerID,
+		OrgID:       req.OrgID,
 	}
 
 	if err := s.taskRepo.Create(ctx, task); err != nil {

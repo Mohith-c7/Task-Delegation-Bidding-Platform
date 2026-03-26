@@ -21,13 +21,13 @@ func NewTaskRepository(db *pgxpool.Pool) *TaskRepository {
 
 func (r *TaskRepository) Create(ctx context.Context, task *models.Task) error {
 	query := `
-		INSERT INTO tasks (title, description, skills, deadline, priority, status, owner_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO tasks (title, description, skills, deadline, priority, status, owner_id, org_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
 		task.Title, task.Description, task.Skills, task.Deadline,
-		task.Priority, task.Status, task.OwnerID,
+		task.Priority, task.Status, task.OwnerID, task.OrgID,
 	).Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt)
 }
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { taskService } from '../../services/taskService'
+import { useAuthStore } from '../../store/authStore'
 import { Button, Input, Textarea, Modal } from '../../design-system'
 import { Plus, Tag, Calendar, Flag, FileText, Sparkles, X } from 'lucide-react'
 
@@ -20,6 +21,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
   const [formData, setFormData] = useState({ title: '', description: '', skills: '', deadline: '', priority: 'medium' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const orgID = useAuthStore(s => s.orgID)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +29,12 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
     setLoading(true)
     try {
       const skillsArray = formData.skills ? formData.skills.split(',').map(s => s.trim()).filter(Boolean) : []
-      await taskService.createTask({ ...formData, deadline: new Date(formData.deadline).toISOString(), skills: skillsArray })
+      await taskService.createTask({
+        ...formData,
+        deadline: new Date(formData.deadline).toISOString(),
+        skills: skillsArray,
+        ...(orgID ? { org_id: orgID } : {}),
+      })
       onSuccess()
       onClose()
       setFormData({ title: '', description: '', skills: '', deadline: '', priority: 'medium' })
