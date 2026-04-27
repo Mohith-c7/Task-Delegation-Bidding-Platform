@@ -8,7 +8,7 @@ import {
   BarElement, ArcElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { TrendingUp, CheckCircle2, Layers, Gavel, Users, Award, ChevronDown } from 'lucide-react';
+import { TrendingUp, CheckCircle2, Layers, Gavel, Users, Award, ChevronDown, Download } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
@@ -93,6 +93,48 @@ export default function Analytics() {
     { label: 'Total Bids', value: summary.total_bids, sub: `Avg ${summary.average_completion_time_hours.toFixed(1)}h completion`, icon: Gavel, color: 'text-warning', bg: 'bg-warning/10' },
   ] : []
 
+  const handleExportCSV = () => {
+    if (!analytics) return
+
+    // Prepare data for export
+    const rows = [
+      ['Analytics Report', `Date Range: Last ${days} days`],
+      ['Generated At', new Date().toLocaleString()],
+      [''],
+      ['Summary Stats'],
+      ['Metric', 'Value'],
+      ['Total Tasks', summary?.total_tasks],
+      ['Open Tasks', summary?.open_tasks],
+      ['Completed Tasks', summary?.completed_tasks],
+      ['Total Bids', summary?.total_bids],
+      ['Completion Rate', `${summary?.task_completion_rate.toFixed(2)}%`],
+      ['Avg Completion Time (Hours)', summary?.average_completion_time_hours.toFixed(2)],
+      [''],
+      ['Top Bidders'],
+      ['Rank', 'Name', 'Total Bids', 'Completed Tasks', 'Success Rate (%)'],
+      ...top_bidders.map((b, i) => [i + 1, b.bidder_name, b.total_bids, b.completed_tasks, b.success_rate.toFixed(2)]),
+      [''],
+      ['Top Task Owners'],
+      ['Rank', 'Name', 'Tasks Posted', 'Tasks Completed', 'Avg Bids/Task'],
+      ...top_task_owners.map((o, i) => [i + 1, o.owner_name, o.tasks_posted, o.tasks_completed, o.average_bids_per_task.toFixed(2)]),
+      [''],
+      ['Skill Demands'],
+      ['Skill', 'Task Count', 'Bid Count'],
+      ...skill_demands.map(s => [s.skill, s.task_count, s.bid_count])
+    ]
+
+    const csvContent = rows.map(r => r.join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `platform-analytics-${days}d.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -115,6 +157,14 @@ export default function Analytics() {
             </select>
             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
           </div>
+          <button
+            onClick={handleExportCSV}
+            disabled={isLoading || !analytics}
+            className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl px-4 py-2 transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            <Download size={14} />
+            Export CSV
+          </button>
         </div>
 
         {/* Stat cards */}

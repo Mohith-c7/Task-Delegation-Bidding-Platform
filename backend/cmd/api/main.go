@@ -73,7 +73,7 @@ func main() {
 	authService := services.NewAuthService(userRepo, cfg)
 	authService.SetRedisClient(redisClient)
 	taskService := services.NewTaskService(taskRepo)
-	bidService := services.NewBidService(bidRepo, taskRepo)
+	bidService := services.NewBidService(bidRepo, taskRepo, userRepo)
 	analyticsService := services.NewAnalyticsService(analyticsRepo)
 	orgService := services.NewOrgService(orgRepo, userRepo)
 	billingService := services.NewBillingService(billingRepo)
@@ -100,6 +100,10 @@ func main() {
 		// Set services in auth service
 		authService.SetEmailService(emailService)
 		authService.SetOTPService(otpService)
+		
+		// Set email service in other services
+		bidService.SetEmailService(emailService)
+		notifService.SetEmailService(emailService)
 
 		log.Println("✓ Email and OTP services initialized")
 	}
@@ -161,6 +165,7 @@ func main() {
 		protected := v1.Group("")
 		protected.Use(middleware.AuthMiddleware(cfg))
 		{
+			protected.GET("/leaderboard", authHandler.GetLeaderboard)
 			protected.GET("/users/me", authHandler.GetMe)
 			protected.GET("/users/me/profile", authHandler.GetMyProfile)
 			protected.GET("/users/:id/profile", authHandler.GetPublicProfile)

@@ -57,6 +57,16 @@ type BidHistoryItem struct {
 	CreatedAt           time.Time `json:"created_at"`
 }
 
+type LeaderboardUser struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	AvatarURL   string   `json:"avatar_url"`
+	TotalPoints int      `json:"total_points"`
+	AvgRating   float64  `json:"avg_rating"`
+	TasksDone   int      `json:"tasks_done"`
+	Skills      []string `json:"skills"`
+}
+
 type RegisterRequest struct {
 	Name     string `json:"name" binding:"required,min=2,max=255"`
 	Email    string `json:"email" binding:"required,email"`

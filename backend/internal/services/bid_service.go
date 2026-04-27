@@ -11,14 +11,21 @@ import (
 type BidService struct {
 	bidRepo         *repository.BidRepository
 	taskRepo        *repository.TaskRepository
+	userRepo        *repository.UserRepository
 	notifService    *NotificationService
+	emailService    *EmailService
 }
 
-func NewBidService(bidRepo *repository.BidRepository, taskRepo *repository.TaskRepository) *BidService {
+func NewBidService(bidRepo *repository.BidRepository, taskRepo *repository.TaskRepository, userRepo *repository.UserRepository) *BidService {
 	return &BidService{
 		bidRepo:  bidRepo,
 		taskRepo: taskRepo,
+		userRepo: userRepo,
 	}
+}
+
+func (s *BidService) SetEmailService(es *EmailService) {
+	s.emailService = es
 }
 
 func (s *BidService) SetNotificationService(ns *NotificationService) {
@@ -76,6 +83,17 @@ func (s *BidService) CreateBid(ctx context.Context, taskID string, req *models.C
 			ResourceType: strPtr("task"),
 			ResourceID:   &taskID,
 		})
+	}
+
+	// Email notification to task owner
+	if s.emailService != nil {
+		owner, err := s.userRepo.GetByID(ctx, task.OwnerID)
+		if err == nil {
+			bidder, err := s.userRepo.GetByID(ctx, bidderID)
+			if err == nil {
+				go s.emailService.SendBidNotification(owner.Email, owner.Name, bidder.Name, task.Title)
+			}
+		}
 	}
 
 	return bid, nil
@@ -136,6 +154,14 @@ func (s *BidService) ApproveBid(ctx context.Context, bidID string, approverID st
 		})
 	}
 
+	// Email notification to bidder
+	if s.emailService != nil {
+		bidder, err := s.userRepo.GetByID(ctx, bid.BidderID)
+		if err == nil {
+			go s.emailService.SendBidApprovedNotification(bidder.Email, bidder.Name, task.Title)
+		}
+	}
+
 	return nil
 }
 
@@ -163,7 +189,31 @@ func (s *BidService) RejectBid(ctx context.Context, bidID string, approverID str
 	}
 
 	// Update bid status
-	return s.bidRepo.UpdateStatus(ctx, bidID, models.BidRejected, &approverID)
+	if err := s.bidRepo.UpdateStatus(ctx, bidID, models.BidRejected, &approverID); err != nil {
+		return err
+	}
+
+	// Notify bidder
+	if s.notifService != nil {
+		_ = s.notifService.Publish(ctx, &models.Notification{
+			UserID:       bid.BidderID,
+			Type:         models.NotifBidRejected,
+			Title:        "Bid Update",
+			Body:         "Your bid on \"" + task.Title + "\" was not selected",
+			ResourceType: strPtr("task"),
+			ResourceID:   &task.ID,
+		})
+	}
+
+	// Email notification to bidder
+	if s.emailService != nil {
+		bidder, err := s.userRepo.GetByID(ctx, bid.BidderID)
+		if err == nil {
+			go s.emailService.SendBidRejectedNotification(bidder.Email, bidder.Name, task.Title)
+		}
+	}
+
+	return nil
 }
 
 func strPtr(s string) *string { return &s }

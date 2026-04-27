@@ -256,3 +256,14 @@ func (h *AuthHandler) GetPublicProfile(c *gin.Context) {
 
 	utils.SuccessResponse(c, 200, "Public profile retrieved successfully", publicProfile)
 }
+
+// GetLeaderboard returns the top 20 users by total points.
+func (h *AuthHandler) GetLeaderboard(c *gin.Context) {
+	leaderboard, err := h.authService.GetLeaderboard(c.Request.Context())
+	if err != nil {
+		utils.ErrorResponse(c, 500, "Failed to retrieve leaderboard")
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Leaderboard retrieved successfully", leaderboard)
+}

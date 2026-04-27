@@ -5,11 +5,11 @@ import { taskService, Task } from '../services/taskService'
 import Layout from '../components/common/Layout'
 import TaskCard from '../components/tasks/TaskCard'
 import CreateTaskModal from '../components/tasks/CreateTaskModal'
-import PlaceBidModal from '../components/bids/PlaceBidModal'
-import ViewBidsModal from '../components/bids/ViewBidsModal'
 import { Button, SkeletonCard, EmptyState, ConfirmModal } from '../design-system'
+import RecommendedTasks from '../components/dashboard/RecommendedTasks'
+import KanbanBoard from '../components/dashboard/KanbanBoard'
 import { useToast } from '../design-system'
-import { Plus, LayoutGrid, List, TrendingUp, CheckCircle2, Clock3, Layers, AlertCircle, Search, Filter, X } from 'lucide-react'
+import { Plus, LayoutGrid, List, Columns, TrendingUp, CheckCircle2, Clock3, Layers, AlertCircle, Search, Filter, X } from 'lucide-react'
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
@@ -165,7 +165,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('grid')
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [bidModalOpen, setBidModalOpen] = useState(false)
   const [viewBidsModalOpen, setViewBidsModalOpen] = useState(false)
@@ -357,12 +357,19 @@ export default function Dashboard() {
                 <button
                   onClick={() => setViewMode('list')}
                   className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-primary'}`}
+                  title="List View"
                 >
                   <List size={15} />
                 </button>
+                <button
+                  onClick={() => setViewMode('kanban')}
+                  className={`p-1.5 rounded-lg transition-all ${viewMode === 'kanban' ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-primary'}`}
+                  title="Kanban Board"
+                >
+                  <Columns size={15} />
+                </button>
               </div>
-            </div>
-          </div>
+      </div>
 
           {/* Advanced Filters Panel */}
           {showFilters && (
@@ -405,6 +412,11 @@ export default function Dashboard() {
         </div>
       </div>
 
+      </div>
+
+      {/* Recommended section */}
+      <RecommendedTasks />
+
       {/* Content */}
       {loading ? (
         <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
@@ -418,18 +430,28 @@ export default function Dashboard() {
           action={filter === 'open' ? { label: 'Create Task', onClick: () => setCreateModalOpen(true) } : undefined}
         />
       ) : (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
-          {safeTasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              isOwner={isTaskOwner(task)}
-              onPlaceBid={handlePlaceBid}
-              onViewBids={handleViewBids}
-              onDelete={handleDeleteTask}
-            />
-          ))}
-        </div>
+        viewMode === 'kanban' ? (
+          <KanbanBoard
+            tasks={safeTasks}
+            onPlaceBid={handlePlaceBid}
+            onViewBids={handleViewBids}
+            onDelete={handleDeleteTask}
+            isOwner={isTaskOwner}
+          />
+        ) : (
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
+            {safeTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                isOwner={isTaskOwner(task)}
+                onPlaceBid={handlePlaceBid}
+                onViewBids={handleViewBids}
+                onDelete={handleDeleteTask}
+              />
+            ))}
+          </div>
+        )
       )}
 
       <CreateTaskModal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} onSuccess={loadTasks} />

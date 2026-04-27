@@ -371,6 +371,10 @@ func (s *AuthService) IsTokenInvalidated(ctx context.Context, userID string) boo
 		return false
 	}
 	key := fmt.Sprintf("token_invalidated:%s", userID)
-	val, err := s.redisClient.Get(ctx, key).Result()
-	return err == nil && val == "1"
+	exists, _ := s.redisClient.Exists(ctx, key).Result()
+	return exists > 0
+}
+
+func (s *AuthService) GetLeaderboard(ctx context.Context) ([]*models.LeaderboardUser, error) {
+	return s.userRepo.GetLeaderboard(ctx)
 }

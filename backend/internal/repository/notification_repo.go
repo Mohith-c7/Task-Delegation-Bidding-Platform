@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/yourusername/task-delegation-platform/internal/models"
@@ -81,18 +82,22 @@ type DeadlineTask struct {
 	ID         string
 	Title      string
 	AssignedTo *string
+	Deadline   time.Time
+	UserName   string
+	UserEmail  string
 }
 
 // GetTasksDueWithin24Hours returns tasks that are assigned, not finished,
 // and have a deadline between now and 24 hours from now.
 func (r *NotificationRepository) GetTasksDueWithin24Hours(ctx context.Context) ([]DeadlineTask, error) {
 	query := `
-		SELECT id, title, assigned_to::text
-		FROM tasks
-		WHERE assigned_to IS NOT NULL
-		  AND status NOT IN ('completed', 'closed')
-		  AND deadline > NOW()
-		  AND deadline <= NOW() + INTERVAL '24 hours'
+		SELECT t.id, t.title, t.assigned_to::text, t.deadline, u.name, u.email
+		FROM tasks t
+		JOIN users u ON t.assigned_to = u.id
+		WHERE t.assigned_to IS NOT NULL
+		  AND t.status NOT IN ('completed', 'closed')
+		  AND t.deadline > NOW()
+		  AND t.deadline <= NOW() + INTERVAL '24 hours'
 	`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
@@ -103,7 +108,7 @@ func (r *NotificationRepository) GetTasksDueWithin24Hours(ctx context.Context) (
 	var tasks []DeadlineTask
 	for rows.Next() {
 		var t DeadlineTask
-		if err := rows.Scan(&t.ID, &t.Title, &t.AssignedTo); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.AssignedTo, &t.Deadline, &t.UserName, &t.UserEmail); err != nil {
 			return nil, err
 		}
 		tasks = append(tasks, t)

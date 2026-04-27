@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/smtp"
+	"time"
 
 	"github.com/yourusername/task-delegation-platform/internal/config"
 	"github.com/yourusername/task-delegation-platform/internal/utils"
@@ -148,4 +149,13 @@ func (s *EmailService) SendBidRejectedNotification(to, bidderName, taskTitle str
 	actionURL := "http://localhost:5173/dashboard"
 	actionText := "Browse Tasks"
 	return s.SendNotification(to, bidderName, title, message, actionURL, actionText)
+}
+
+// SendDeadlineReminder sends notification when a task is due within 24 hours
+func (s *EmailService) SendDeadlineReminder(to, userName, taskTitle string, deadline time.Time) error {
+	title := "Task Deadline Approaching"
+	message := fmt.Sprintf("Gentle reminder: your assigned task '%s' is due soon (by %s). Please ensure it is completed on time.", taskTitle, deadline.Format("Jan 02, 2006 15:04"))
+	actionURL := "http://localhost:5173/my-bids"
+	actionText := "Go to Project"
+	return s.SendNotification(to, userName, title, message, actionURL, actionText)
 }

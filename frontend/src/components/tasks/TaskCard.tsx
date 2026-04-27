@@ -12,6 +12,8 @@ interface TaskCardProps {
   onDelete?: (task: Task) => void
   showActions?: boolean
   isOwner?: boolean
+  showDescription?: boolean
+  compact?: boolean
 }
 
 function formatDeadline(deadline: string) {
@@ -35,6 +37,8 @@ export default function TaskCard({
   onDelete,
   showActions = true,
   isOwner = false,
+  showDescription = true,
+  compact = false,
 }: TaskCardProps) {
   const deadline = formatDeadline(task.deadline)
   const navigate = useNavigate()
@@ -55,7 +59,10 @@ export default function TaskCard({
         task.priority === 'low'      && 'bg-success',
       )} />
 
-      <div className="p-5 flex flex-col flex-1">
+      <div className={cn(
+        compact ? "p-3" : "p-5",
+        "flex flex-col flex-1"
+      )}>
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
@@ -74,12 +81,14 @@ export default function TaskCard({
         </div>
 
         {/* Description */}
-        <p className="text-xs text-text-secondary line-clamp-2 mb-4 leading-relaxed flex-1">
-          {task.description}
-        </p>
+        {!compact && showDescription && (
+          <p className="text-xs text-text-secondary line-clamp-2 mb-4 leading-relaxed flex-1">
+            {task.description}
+          </p>
+        )}
 
         {/* Skills */}
-        {task.skills.length > 0 && (
+        {!compact && task.skills.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-4">
             {task.skills.slice(0, 3).map((skill, i) => (
               <span key={i} className="px-2 py-0.5 bg-primary-light text-primary text-[10px] font-medium rounded-md">
@@ -109,16 +118,18 @@ export default function TaskCard({
         </div>
 
         {/* Owner row */}
-        <div className="flex items-center justify-between text-xs border-t border-border/50 pt-3 pb-1">
-          <span className="text-text-tertiary">Posted by</span>
-          <button 
-            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${task.owner_id}`) }}
-            className="font-medium text-text-primary hover:text-primary transition-colors truncate max-w-[150px]"
-            title={task.owner_name}
-          >
-            {task.owner_name || 'Organization Member'}
-          </button>
-        </div>
+        {!compact && (
+          <div className="flex items-center justify-between text-xs border-t border-border/50 pt-3 pb-1">
+            <span className="text-text-tertiary">Posted by</span>
+            <button 
+              onClick={(e) => { e.stopPropagation(); navigate(`/profile/${task.owner_id}`) }}
+              className="font-medium text-text-primary hover:text-primary transition-colors truncate max-w-[150px]"
+              title={task.owner_name}
+            >
+              {task.owner_name || 'Organization Member'}
+            </button>
+          </div>
+        )}
 
         {/* Footer */}
         {showActions && (

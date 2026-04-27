@@ -177,3 +177,44 @@ func (r *UserRepository) GetProfile(ctx context.Context, userID string) (*models
 
 	return profile, nil
 }
+
+func (r *UserRepository) GetLeaderboard(ctx context.Context) ([]*models.LeaderboardUser, error) {
+	query := `
+		SELECT 
+			u.id, 
+			u.name, 
+			COALESCE(u.avatar_url, ''), 
+			u.total_points, 
+			u.rating_sum, 
+			u.rating_count, 
+			u.skills,
+			(SELECT COUNT(*) FROM tasks WHERE assigned_to = u.id AND status = 'completed') as tasks_done
+		FROM users u
+		ORDER BY u.total_points DESC
+		LIMIT 20
+	`
+
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var leaderboard []*models.LeaderboardUser
+	for rows.Next() {
+		var u models.LeaderboardUser
+		var rSum, rCount int
+		if err := rows.Scan(&u.ID, &u.Name, &u.AvatarURL, &u.TotalPoints, &rSum, &rCount, &u.Skills, &u.TasksDone); err != nil {
+			return nil, err
+		}
+		if rCount > 0 {
+			u.AvgRating = float64(rSum) / float64(rCount)
+		}
+		if u.Skills == nil {
+			u.Skills = []string{}
+		}
+		leaderboard = append(leaderboard, &u)
+	}
+
+	return leaderboard, nil
+}

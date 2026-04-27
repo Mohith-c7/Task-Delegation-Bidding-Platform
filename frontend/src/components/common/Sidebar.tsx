@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, CheckSquare, Gavel, BarChart3,
   TrendingUp, Settings, LogOut, ChevronLeft, ChevronRight,
-  Zap,
+  Zap, Trophy,
 } from 'lucide-react'
 import { cn } from '../../design-system/utils'
 import { Avatar } from '../../design-system'
@@ -19,6 +19,7 @@ const navItems = [
   { path: '/my-bids',      label: 'My Bids',      icon: Gavel },
   { path: '/analytics',    label: 'Analytics',    icon: BarChart3 },
   { path: '/my-analytics', label: 'Performance',  icon: TrendingUp },
+  { path: '/leaderboard',  label: 'Leaderboard',  icon: Trophy },
 ]
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {

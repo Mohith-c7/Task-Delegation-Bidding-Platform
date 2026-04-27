@@ -15,10 +15,18 @@ import (
 type NotificationService struct {
 	notifRepo   *repository.NotificationRepository
 	redisClient *redis.Client
+	emailService *EmailService
 }
 
 func NewNotificationService(notifRepo *repository.NotificationRepository, redisClient *redis.Client) *NotificationService {
-	return &NotificationService{notifRepo: notifRepo, redisClient: redisClient}
+	return &NotificationService{
+		notifRepo:   notifRepo,
+		redisClient: redisClient,
+	}
+}
+
+func (s *NotificationService) SetEmailService(es *EmailService) {
+	s.emailService = es
 }
 
 // Publish creates a notification in DB and publishes to Redis pub/sub.
@@ -112,6 +120,15 @@ func (s *NotificationService) sendDeadlineReminders(ctx context.Context) {
 
 		if err := s.Publish(ctx, notif); err != nil {
 			log.Printf("deadline reminder: failed to notify user %s: %v", *t.AssignedTo, err)
+		}
+
+		// Email notification
+		if s.emailService != nil {
+			go func(to, name, title string, dl time.Time) {
+				if err := s.emailService.SendDeadlineReminder(to, name, title, dl); err != nil {
+					log.Printf("deadline reminder email: failed to send to %s: %v", to, err)
+				}
+			}(t.UserEmail, t.UserName, t.Title, t.Deadline)
 		}
 	}
 
