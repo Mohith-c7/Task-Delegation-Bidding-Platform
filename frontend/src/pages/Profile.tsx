@@ -1,23 +1,45 @@
-import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { User, Lock, Bell, Camera, Plus, X, Loader2, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { User, Lock, Bell, Plus, X, Loader2, CheckCircle, Edit3, ClipboardList, TrendingUp } from 'lucide-react'
 import Layout from '../components/common/Layout'
 import { Button, Card, Input } from '../design-system'
 import { useAuthStore } from '../store/authStore'
 import { useToast } from '../design-system'
 import api from '../services/api'
+import { authService } from '../services/authService'
 import { cn } from '../design-system/utils'
 
 export default function Profile() {
   const { user, setAuth, token } = useAuthStore()
   const { success: toastSuccess, error: toastError } = useToast()
-  const [activeSection, setActiveSection] = useState<'profile' | 'password' | 'notifications'>('profile')
+  
+  const { data: profile, isLoading, refetch } = useQuery({
+    queryKey: ['myProfile'],
+    queryFn: () => authService.getMyProfile(),
+    enabled: !!user?.id,
+  })
+
+  // We use the full profile type
+  type TabType = 'overview' | 'settings' | 'password' | 'notifications' | 'task_history' | 'bid_history'
+  const [activeSection, setActiveSection] = useState<TabType>('overview')
 
   // Profile form
   const [name, setName] = useState(user?.name || '')
   const [avatarURL, setAvatarURL] = useState('')
+  const [bio, setBio] = useState('')
+  const [resumeURL, setResumeURL] = useState('')
   const [skills, setSkills] = useState<string[]>([])
   const [skillInput, setSkillInput] = useState('')
+
+  useEffect(() => {
+    if (profile) {
+      setName(profile.name || '')
+      setAvatarURL(profile.avatar_url || '')
+      setBio(profile.bio || '')
+      setResumeURL(profile.resume_url || '')
+      setSkills(profile.skills || [])
+    }
+  }, [profile])
 
   // Password form
   const [currentPwd, setCurrentPwd] = useState('')
@@ -31,9 +53,10 @@ export default function Profile() {
   })
 
   const updateProfile = useMutation({
-    mutationFn: () => api.put('/users/me', { name, avatar_url: avatarURL, skills }),
+    mutationFn: () => api.put('/users/me', { name, avatar_url: avatarURL, bio, resume_url: resumeURL, skills }),
     onSuccess: (res) => {
       if (token) setAuth(res.data.data, token)
+      refetch()
       toastSuccess('Profile updated')
     },
     onError: () => toastError('Failed to update profile'),
@@ -62,7 +85,10 @@ export default function Profile() {
   }
 
   const sections = [
-    { id: 'profile' as const, label: 'Profile', icon: <User className="w-4 h-4" /> },
+    { id: 'overview' as const, label: 'Overview', icon: <User className="w-4 h-4" /> },
+    { id: 'task_history' as const, label: 'Task History', icon: <ClipboardList className="w-4 h-4" /> },
+    { id: 'bid_history' as const, label: 'Bid History', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'settings' as const, label: 'Settings', icon: <Edit3 className="w-4 h-4" /> },
     { id: 'password' as const, label: 'Password', icon: <Lock className="w-4 h-4" /> },
     { id: 'notifications' as const, label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
   ]
@@ -71,43 +97,76 @@ export default function Profile() {
   const pwdColors = ['', 'bg-[var(--color-error)]', 'bg-[var(--color-warning)]', 'bg-[var(--color-success)]']
   const pwdLabels = ['', 'Weak', 'Fair', 'Strong']
 
+  if (isLoading) {
+    return <Layout><div className="flex items-center justify-center p-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div></Layout>
+  }
+
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--color-on-surface)]">Profile</h1>
-          <p className="text-[var(--color-on-surface-variant)] mt-1">Manage your account settings</p>
-        </div>
-
-        {/* Avatar hero */}
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Avatar & Stats hero */}
         <Card className="p-6">
-          <div className="flex items-center gap-5">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-tertiary)] flex items-center justify-center text-3xl font-bold text-white">
-                {user?.name?.[0]?.toUpperCase() || 'U'}
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+            <div className="flex items-start gap-5">
+              <div className="relative">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-surface" />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-tertiary flex items-center justify-center text-4xl font-bold text-white shadow-md border-4 border-surface">
+                    {profile?.name?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
               </div>
-              <button className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[var(--color-surface)] border-2 border-[var(--color-outline)] flex items-center justify-center hover:bg-[var(--color-surface-variant)] transition-colors">
-                <Camera className="w-3.5 h-3.5 text-[var(--color-on-surface-variant)]" />
-              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-text-primary">{profile?.name}</h1>
+                <p className="text-text-secondary">{profile?.email}</p>
+                {profile?.bio && <p className="text-sm text-text-tertiary mt-2 max-w-lg">{profile.bio}</p>}
+                
+                {profile?.skills && profile.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {profile.skills.map(s => (
+                      <span key={s} className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-medium">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-[var(--color-on-surface)]">{user?.name}</h2>
-              <p className="text-sm text-[var(--color-on-surface-variant)]">{user?.email}</p>
+
+            {/* Quick Stats */}
+            <div className="flex gap-4 p-4 bg-surface-2 rounded-2xl border border-border">
+              <div className="text-center px-4 border-r border-border">
+                <p className="text-xs text-text-tertiary mb-1">Avg Rating</p>
+                <p className="text-xl font-bold text-primary">{profile?.avg_rating ? profile.avg_rating.toFixed(1) : '-'}</p>
+                <p className="text-[10px] text-text-tertiary">({profile?.rating_count} reviews)</p>
+              </div>
+              <div className="text-center px-4 border-r border-border">
+                <p className="text-xs text-text-tertiary mb-1">Success Rate</p>
+                <p className="text-xl font-bold text-success">
+                  {profile?.success_rate ? `${(profile.success_rate * 100).toFixed(0)}%` : '-'}
+                </p>
+                <p className="text-[10px] text-text-tertiary">Won bids / Total</p>
+              </div>
+              <div className="text-center px-4">
+                <p className="text-xs text-text-tertiary mb-1">Points</p>
+                <p className="text-xl font-bold text-warning">{profile?.total_points || 0}</p>
+              </div>
             </div>
           </div>
         </Card>
 
         {/* Section tabs */}
-        <div className="flex gap-1 p-1 bg-[var(--color-surface-variant)] rounded-xl w-fit">
+        <div className="flex gap-1 p-1 bg-surface-2 border border-border rounded-xl w-fit overflow-x-auto">
           {sections.map(s => (
             <button
               key={s.id}
               onClick={() => setActiveSection(s.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap',
                 activeSection === s.id
-                  ? 'bg-[var(--color-surface)] text-[var(--color-primary)] shadow-sm'
-                  : 'text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)]'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-3'
               )}
             >
               {s.icon}{s.label}
@@ -115,20 +174,124 @@ export default function Profile() {
           ))}
         </div>
 
-        {/* Profile section */}
-        {activeSection === 'profile' && (
+        {/* Overview Tab */}
+        {activeSection === 'overview' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="p-6 space-y-4">
+              <h2 className="font-bold text-lg text-text-primary border-b border-border pb-2">Delegation Stats</h2>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-text-secondary">Total Tasks Posted</span>
+                <span className="font-semibold text-text-primary">{profile?.total_tasks_posted || 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-text-secondary">Tasks Completed</span>
+                <span className="font-semibold text-text-primary">{profile?.total_tasks_completed || 0}</span>
+              </div>
+            </Card>
+            <Card className="p-6 space-y-4">
+              <h2 className="font-bold text-lg text-text-primary border-b border-border pb-2">Bidding Stats</h2>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-text-secondary">Bids Placed</span>
+                <span className="font-semibold text-text-primary">{profile?.total_bids_placed || 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-text-secondary">Bids Won</span>
+                <span className="font-semibold text-text-primary">{profile?.total_bids_won || 0}</span>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Task History Tab */}
+        {activeSection === 'task_history' && (
+          <Card className="p-6">
+            <h2 className="font-bold text-lg text-text-primary mb-4 pb-2 border-b border-border">Task History</h2>
+            {profile?.task_history?.length === 0 ? (
+              <p className="text-text-tertiary text-center py-8">No tasks posted yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {profile?.task_history?.map(task => (
+                  <div key={task.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-surface-2 rounded-xl border border-border">
+                    <div>
+                      <h4 className="font-medium text-text-primary">{task.title}</h4>
+                      <p className="text-xs text-text-tertiary mt-1">Created: {new Date(task.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 sm:mt-0">
+                      <span className="px-2.5 py-1 bg-surface-3 rounded-lg text-xs font-semibold capitalize text-text-secondary">{task.status.replace('_', ' ')}</span>
+                      {task.rating && (
+                        <div className="flex items-center gap-1 text-warning bg-warning/10 px-2 py-0.5 rounded-md text-xs font-bold">
+                          ★ {task.rating}/5
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Bid History Tab */}
+        {activeSection === 'bid_history' && (
+          <Card className="p-6">
+            <h2 className="font-bold text-lg text-text-primary mb-4 pb-2 border-b border-border">Bid History</h2>
+            {profile?.bid_history?.length === 0 ? (
+              <p className="text-text-tertiary text-center py-8">No bids placed yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {profile?.bid_history?.map(bid => (
+                  <div key={bid.bid_id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-surface-2 rounded-xl border border-border">
+                    <div>
+                      <h4 className="font-medium text-text-primary">{bid.task_title}</h4>
+                      <p className="text-xs text-text-tertiary mt-1">Estimated completion: {bid.estimated_completion}</p>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 sm:mt-0">
+                      <span className={cn(
+                        "px-2.5 py-1 rounded-lg text-xs font-semibold capitalize",
+                        bid.bid_status === 'approved' ? "bg-success/10 text-success" :
+                        bid.bid_status === 'rejected' ? "bg-error/10 text-error" :
+                        "bg-warning/10 text-warning"
+                      )}>
+                        {bid.bid_status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Settings section */}
+        {activeSection === 'settings' && (
           <Card className="p-6 space-y-5">
-            <h2 className="font-semibold text-[var(--color-on-surface)]">Edit Profile</h2>
-            <Input label="Display Name" value={name} onChange={e => setName(e.target.value)} />
-            <Input label="Avatar URL" value={avatarURL} onChange={e => setAvatarURL(e.target.value)} placeholder="https://..." />
+            <h2 className="font-semibold text-text-primary">Edit Profile Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Display Name" value={name} onChange={e => setName(e.target.value)} />
+              <Input label="Avatar URL" value={avatarURL} onChange={e => setAvatarURL(e.target.value)} placeholder="https://..." />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-text-primary">Bio</label>
+                <textarea 
+                  className="w-full bg-surface border border-outline rounded-xl p-3 text-sm text-text-primary focus:outline-none focus:border-primary transition-colors min-h-[100px]"
+                  value={bio} onChange={e => setBio(e.target.value)}
+                  placeholder="Tell us about yourself..."
+                />
+              </div>
+              <div>
+                <Input label="Resume URL" value={resumeURL} onChange={e => setResumeURL(e.target.value)} placeholder="https://linkedin.com/in/... or drive link" />
+              </div>
+            </div>
 
             <div>
-              <label className="block text-sm font-medium text-[var(--color-on-surface)] mb-2">Skills</label>
+              <label className="block text-sm font-medium text-text-primary mb-2">Skills</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {skills.map(s => (
-                  <span key={s} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)] text-sm">
+                  <span key={s} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container text-sm">
                     {s}
-                    <button onClick={() => setSkills(skills.filter(sk => sk !== s))} className="hover:text-[var(--color-error)]">
+                    <button onClick={() => setSkills(skills.filter(sk => sk !== s))} className="hover:text-error transition-colors">
                       <X className="w-3 h-3" />
                     </button>
                   </span>
@@ -138,11 +301,11 @@ export default function Profile() {
                 <Input
                   value={skillInput}
                   onChange={e => setSkillInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addSkill()}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }}
                   placeholder="Add a skill..."
                   className="flex-1"
                 />
-                <Button variant="secondary" size="sm" onClick={addSkill}>
+                <Button variant="secondary" size="sm" onClick={(e) => { e.preventDefault(); addSkill(); }}>
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
@@ -158,7 +321,7 @@ export default function Profile() {
         {/* Password section */}
         {activeSection === 'password' && (
           <Card className="p-6 space-y-5">
-            <h2 className="font-semibold text-[var(--color-on-surface)]">Change Password</h2>
+            <h2 className="font-semibold text-text-primary">Change Password</h2>
             <Input label="Current Password" type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} />
             <div>
               <Input label="New Password" type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} />
@@ -166,10 +329,10 @@ export default function Profile() {
                 <div className="mt-2">
                   <div className="flex gap-1 mb-1">
                     {[1, 2, 3].map(i => (
-                      <div key={i} className={cn('h-1 flex-1 rounded-full transition-all', i <= pwdStrength ? pwdColors[pwdStrength] : 'bg-[var(--color-surface-variant)]')} />
+                      <div key={i} className={cn('h-1 flex-1 rounded-full transition-all', i <= pwdStrength ? pwdColors[pwdStrength] : 'bg-surface-variant')} />
                     ))}
                   </div>
-                  <p className="text-xs text-[var(--color-on-surface-variant)]">{pwdLabels[pwdStrength]}</p>
+                  <p className="text-xs text-text-tertiary">{pwdLabels[pwdStrength]}</p>
                 </div>
               )}
             </div>
@@ -194,16 +357,16 @@ export default function Profile() {
         {/* Notifications section */}
         {activeSection === 'notifications' && (
           <Card className="p-6 space-y-5">
-            <h2 className="font-semibold text-[var(--color-on-surface)]">Notification Preferences</h2>
+            <h2 className="font-semibold text-text-primary">Notification Preferences</h2>
             <div className="space-y-3">
               {Object.entries(notifPrefs).map(([key, val]) => (
                 <label key={key} className="flex items-center justify-between cursor-pointer group">
-                  <span className="text-sm text-[var(--color-on-surface)] capitalize">{key.replace(/_/g, ' ')}</span>
+                  <span className="text-sm text-text-primary capitalize">{key.replace(/_/g, ' ')}</span>
                   <div
                     onClick={() => setNotifPrefs(p => ({ ...p, [key]: !val }))}
                     className={cn(
                       'relative w-11 h-6 rounded-full transition-colors cursor-pointer',
-                      val ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-surface-variant)]'
+                      val ? 'bg-primary' : 'bg-surface-variant'
                     )}
                   >
                     <div className={cn(

@@ -30,13 +30,16 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, name, email, password_hash, email_verified, verified_at, created_at, updated_at
+		SELECT id, name, email, password_hash, bio, avatar_url, skills, resume_url, 
+		       email_verified, verified_at, total_points, rating_sum, rating_count, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
 	err := r.db.QueryRow(ctx, query, email).Scan(
 		&user.ID, &user.Name, &user.Email, &user.PasswordHash,
+		&user.Bio, &user.AvatarURL, &user.Skills, &user.ResumeURL,
 		&user.EmailVerified, &user.VerifiedAt,
+		&user.TotalPoints, &user.RatingSum, &user.RatingCount,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
@@ -51,13 +54,16 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, name, email, password_hash, email_verified, verified_at, created_at, updated_at
+		SELECT id, name, email, password_hash, bio, avatar_url, skills, resume_url, 
+		       email_verified, verified_at, total_points, rating_sum, rating_count, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&user.ID, &user.Name, &user.Email, &user.PasswordHash,
+		&user.Bio, &user.AvatarURL, &user.Skills, &user.ResumeURL,
 		&user.EmailVerified, &user.VerifiedAt,
+		&user.TotalPoints, &user.RatingSum, &user.RatingCount,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
@@ -79,10 +85,95 @@ func (r *UserRepository) EmailExists(ctx context.Context, email string) (bool, e
 func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users
-		SET name = $1, email = $2, password_hash = $3, email_verified = $4, verified_at = $5, updated_at = NOW()
-		WHERE id = $6
+		SET name = $1, email = $2, password_hash = $3,
+		    bio = $4, avatar_url = $5, skills = $6, resume_url = $7,
+		    email_verified = $8, verified_at = $9, updated_at = NOW()
+		WHERE id = $10
 		RETURNING updated_at
 	`
-	return r.db.QueryRow(ctx, query, user.Name, user.Email, user.PasswordHash, user.EmailVerified, user.VerifiedAt, user.ID).
-		Scan(&user.UpdatedAt)
+	return r.db.QueryRow(ctx, query, 
+		user.Name, user.Email, user.PasswordHash,
+		user.Bio, user.AvatarURL, user.Skills, user.ResumeURL,
+		user.EmailVerified, user.VerifiedAt, user.ID,
+	).Scan(&user.UpdatedAt)
+}
+
+func (r *UserRepository) GetProfile(ctx context.Context, userID string) (*models.UserProfile, error) {
+	// First get base user
+	user, err := r.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	profile := &models.UserProfile{
+		User:        *user,
+		TaskHistory: make([]models.TaskHistoryItem, 0),
+		BidHistory:  make([]models.BidHistoryItem, 0),
+	}
+
+	if profile.RatingCount > 0 {
+		profile.AvgRating = float64(profile.RatingSum) / float64(profile.RatingCount)
+	}
+
+	// 1. Get task stats
+	var totalTasks, completedTasks int
+	err = r.db.QueryRow(ctx, `
+		SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 'completed')
+		FROM tasks WHERE owner_id = $1
+	`, userID).Scan(&totalTasks, &completedTasks)
+	if err == nil {
+		profile.TotalTasksPosted = totalTasks
+		profile.TotalTasksCompleted = completedTasks
+	}
+
+	// 2. Get bid stats
+	var totalBids, approvedBids int
+	err = r.db.QueryRow(ctx, `
+		SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 'approved')
+		FROM bids WHERE bidder_id = $1
+	`, userID).Scan(&totalBids, &approvedBids)
+	if err == nil {
+		profile.TotalBidsPlaced = totalBids
+		profile.TotalBidsWon = approvedBids
+		if totalBids > 0 {
+			profile.SuccessRate = float64(approvedBids) / float64(totalBids)
+		}
+	}
+
+	// 3. Get Task History
+	tRows, err := r.db.Query(ctx, `
+		SELECT id, title, status, priority, deadline, created_at, assigned_to::text, rating, points
+		FROM tasks
+		WHERE owner_id = $1
+		ORDER BY created_at DESC
+	`, userID)
+	if err == nil {
+		for tRows.Next() {
+			var t models.TaskHistoryItem
+			if err := tRows.Scan(&t.ID, &t.Title, &t.Status, &t.Priority, &t.Deadline, &t.CreatedAt, &t.AssignedTo, &t.Rating, &t.Points); err == nil {
+				profile.TaskHistory = append(profile.TaskHistory, t)
+			}
+		}
+		tRows.Close()
+	}
+
+	// 4. Get Bid History
+	bRows, err := r.db.Query(ctx, `
+		SELECT b.id, b.task_id, t.title, t.status, t.deadline, b.status, b.estimated_completion, b.created_at
+		FROM bids b
+		JOIN tasks t ON b.task_id = t.id
+		WHERE b.bidder_id = $1
+		ORDER BY b.created_at DESC
+	`, userID)
+	if err == nil {
+		for bRows.Next() {
+			var b models.BidHistoryItem
+			if err := bRows.Scan(&b.BidID, &b.TaskID, &b.TaskTitle, &b.TaskStatus, &b.TaskDeadline, &b.BidStatus, &b.EstimatedCompletion, &b.CreatedAt); err == nil {
+				profile.BidHistory = append(profile.BidHistory, b)
+			}
+		}
+		bRows.Close()
+	}
+
+	return profile, nil
 }

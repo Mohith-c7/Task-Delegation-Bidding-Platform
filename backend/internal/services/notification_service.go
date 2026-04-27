@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/yourusername/task-delegation-platform/internal/models"
@@ -51,7 +52,6 @@ func (s *NotificationService) MarkAllRead(ctx context.Context, userID string) er
 }
 
 // Subscribe returns a Redis pub/sub channel for a user's notifications.
-// Returns the channel and an unsubscribe function.
 func (s *NotificationService) Subscribe(ctx context.Context, userID string) (<-chan *redis.Message, func()) {
 	if s.redisClient == nil {
 		ch := make(chan *redis.Message)
@@ -62,10 +62,60 @@ func (s *NotificationService) Subscribe(ctx context.Context, userID string) (<-c
 	return pubsub.Channel(), func() { _ = pubsub.Close() }
 }
 
-// StartDeadlineReminderJob runs a background goroutine that checks for tasks
-// with deadlines within 24 hours and publishes reminder notifications.
+// StartDeadlineReminderJob runs a background goroutine that checks every hour
+// for tasks with deadlines within the next 24 hours and publishes reminder
+// notifications to the assigned user.
 func (s *NotificationService) StartDeadlineReminderJob(ctx context.Context) {
 	go func() {
-		log.Println("✓ Deadline reminder job started")
+		log.Println("✓ Deadline reminder job started (runs every hour)")
+
+		// Run once immediately on startup, then every hour
+		s.sendDeadlineReminders(ctx)
+
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("Deadline reminder job stopped")
+				return
+			case <-ticker.C:
+				s.sendDeadlineReminders(ctx)
+			}
+		}
 	}()
+}
+
+// sendDeadlineReminders queries tasks due within 24 hours and notifies assignees.
+func (s *NotificationService) sendDeadlineReminders(ctx context.Context) {
+	tasks, err := s.notifRepo.GetTasksDueWithin24Hours(ctx)
+	if err != nil {
+		log.Printf("deadline reminder: failed to query tasks: %v", err)
+		return
+	}
+
+	for _, t := range tasks {
+		if t.AssignedTo == nil {
+			continue
+		}
+
+		taskID := t.ID
+		notif := &models.Notification{
+			UserID:       *t.AssignedTo,
+			Type:         models.NotifDeadlineSoon,
+			Title:        "Task deadline approaching",
+			Body:         fmt.Sprintf("Task \"%s\" is due within 24 hours", t.Title),
+			ResourceType: strPtr("task"),
+			ResourceID:   &taskID,
+		}
+
+		if err := s.Publish(ctx, notif); err != nil {
+			log.Printf("deadline reminder: failed to notify user %s: %v", *t.AssignedTo, err)
+		}
+	}
+
+	if len(tasks) > 0 {
+		log.Printf("Deadline reminders sent for %d task(s)", len(tasks))
+	}
 }

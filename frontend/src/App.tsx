@@ -10,6 +10,7 @@ import MyAnalytics from './pages/MyAnalytics'
 import TaskDetail from './pages/TaskDetail'
 import OrgSettings from './pages/OrgSettings'
 import Profile from './pages/Profile'
+import PublicProfile from './pages/PublicProfile'
 import Notifications from './pages/Notifications'
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
 import { useAuthStore } from './store/authStore'
@@ -42,6 +43,7 @@ function App() {
             <Route path="/tasks/:id"    element={<ProtectedRoute><TaskDetail /></ProtectedRoute>} />
             <Route path="/org/settings" element={<ProtectedRoute><OrgSettings /></ProtectedRoute>} />
             <Route path="/profile"      element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/profile/:id"  element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/onboarding"    element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
           </Routes>

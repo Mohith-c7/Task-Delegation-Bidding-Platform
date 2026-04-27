@@ -31,6 +31,7 @@ type Task struct {
 	Status      TaskStatus   `json:"status"`
 	OrgID       string       `json:"org_id,omitempty"`
 	OwnerID     string       `json:"owner_id"`
+	OwnerName   string       `json:"owner_name"`
 	AssignedTo  *string      `json:"assigned_to"`
 	Rating      *int         `json:"rating,omitempty"`
 	Points      *int         `json:"points,omitempty"`

@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/yourusername/task-delegation-platform/internal/models"
 	"github.com/yourusername/task-delegation-platform/internal/services"
@@ -73,24 +71,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 func (h *AuthHandler) GetMe(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	uid := userID.(string)
 
-	// Handle hardcoded test user
-	if uid == "00000000-0000-0000-0000-000000000001" {
-		now := time.Now()
-		utils.SuccessResponse(c, 200, "User retrieved successfully", &models.User{
-			ID:            uid,
-			Name:          "John Doe",
-			Email:         "john@example.com",
-			EmailVerified: true,
-			VerifiedAt:    &now,
-			CreatedAt:     now,
-			UpdatedAt:     now,
-		})
-		return
-	}
-
-	user, err := h.authService.GetUserByID(c.Request.Context(), uid)
+	user, err := h.authService.GetUserByID(c.Request.Context(), userID.(string))
 	if err != nil {
 		utils.ErrorResponse(c, 404, "User not found")
 		return
@@ -241,4 +223,36 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, 200, "Token refreshed", gin.H{"access_token": accessToken})
+}
+
+// GetMyProfile returns the complete profile of the authenticated user.
+func (h *AuthHandler) GetMyProfile(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	profile, err := h.authService.GetUserProfile(c.Request.Context(), userID.(string))
+	if err != nil {
+		utils.ErrorResponse(c, 404, "Profile not found")
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Profile retrieved successfully", profile)
+}
+
+// GetPublicProfile returns the public profile of a user.
+func (h *AuthHandler) GetPublicProfile(c *gin.Context) {
+	userID := c.Param("id")
+
+	profile, err := h.authService.GetUserProfile(c.Request.Context(), userID)
+	if err != nil {
+		utils.ErrorResponse(c, 404, "Profile not found")
+		return
+	}
+
+	// For public profiles, we redact sensitive information like email and bid history
+	publicProfile := *profile
+	publicProfile.Email = ""
+	publicProfile.BidHistory = nil
+	// Password is automatically hidden by JSON tags
+
+	utils.SuccessResponse(c, 200, "Public profile retrieved successfully", publicProfile)
 }

@@ -10,11 +10,35 @@ export interface Task {
   priority: 'low' | 'medium' | 'high' | 'critical'
   status: 'open' | 'assigned' | 'in_progress' | 'completed' | 'closed'
   owner_id: string
+  owner_name: string
   assigned_to: string | null
   rating?: number
   points?: number
   created_at: string
   updated_at: string
+}
+
+export interface TaskSearchResult {
+  tasks: Task[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface TaskSearchParams {
+  q?: string
+  status?: string
+  org_id?: string
+  priority?: string
+  assigned_to?: string
+  creator?: string
+  skills?: string[]
+  deadline_from?: string
+  deadline_to?: string
+  sort?: string
+  page?: number
+  page_size?: number
 }
 
 export interface CreateTaskRequest {
@@ -28,16 +52,21 @@ export interface CreateTaskRequest {
 }
 
 export const taskService = {
-  async getAllTasks(status?: string, orgId?: string): Promise<Task[]> {
-    const params: Record<string, string> = {}
-    if (status) params.status = status
-    if (orgId) params.org_id = orgId
-    const response = await api.get('/tasks', { params })
-    // Backend may return { data: Task[] } or { data: { tasks: Task[], total: number } }
-    const payload = response.data.data
-    if (Array.isArray(payload)) return payload
-    if (payload && Array.isArray(payload.tasks)) return payload.tasks
-    return []
+  async getAllTasks(params?: TaskSearchParams): Promise<TaskSearchResult> {
+    const searchParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (Array.isArray(value)) {
+            value.forEach(v => searchParams.append(`${key}[]`, v))
+          } else {
+            searchParams.append(key, String(value))
+          }
+        }
+      })
+    }
+    const response = await api.get(`/tasks?${searchParams.toString()}`)
+    return response.data.data
   },
 
   async getMyTasks(): Promise<Task[]> {

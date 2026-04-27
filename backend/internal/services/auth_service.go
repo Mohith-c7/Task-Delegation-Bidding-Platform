@@ -21,19 +21,12 @@ type AuthService struct {
 	otpService   *OTPService
 	emailService *EmailService
 	redisClient  *redis.Client
-	resetTokens  map[string]resetTokenData // In production, use Redis
-}
-
-type resetTokenData struct {
-	email     string
-	expiresAt time.Time
 }
 
 func NewAuthService(userRepo *repository.UserRepository, cfg *config.Config) *AuthService {
 	return &AuthService{
-		userRepo:    userRepo,
-		config:      cfg,
-		resetTokens: make(map[string]resetTokenData),
+		userRepo: userRepo,
+		config:   cfg,
 	}
 }
 
@@ -100,37 +93,6 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 }
 
 func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*models.AuthResponse, error) {
-	// Hardcoded test credentials - works without database
-	if req.Email == "john@example.com" && req.Password == "password123" {
-		now := time.Now()
-		testUser := &models.User{
-			ID:            "00000000-0000-0000-0000-000000000001",
-			Name:          "John Doe",
-			Email:         "john@example.com",
-			EmailVerified: true,
-			VerifiedAt:    &now,
-			CreatedAt:     now,
-			UpdatedAt:     now,
-		}
-
-		// Generate tokens
-		accessToken, err := utils.GenerateToken(testUser.ID, testUser.Email, "", s.config.JWTSecret, s.config.JWTExpiry)
-		if err != nil {
-			return nil, err
-		}
-
-		refreshToken, err := utils.GenerateToken(testUser.ID, testUser.Email, "", s.config.JWTSecret, s.config.RefreshTokenExpiry)
-		if err != nil {
-			return nil, err
-		}
-
-		return &models.AuthResponse{
-			User:         testUser,
-			AccessToken:  accessToken,
-			RefreshToken: refreshToken,
-		}, nil
-	}
-
 	// Get user by email
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
@@ -281,7 +243,7 @@ func (s *AuthService) CompleteOTPLogin(ctx context.Context, email string) (*mode
 	}, nil
 }
 
-// GeneratePasswordResetToken generates a token for password reset
+// GeneratePasswordResetToken generates a token for password reset and stores it in Redis.
 func (s *AuthService) GeneratePasswordResetToken(ctx context.Context, email string) (string, error) {
 	// Verify user exists
 	_, err := s.userRepo.GetByEmail(ctx, email)
@@ -296,30 +258,32 @@ func (s *AuthService) GeneratePasswordResetToken(ctx context.Context, email stri
 	}
 	token := hex.EncodeToString(tokenBytes)
 
-	// Store token with 15-minute expiry
-	s.resetTokens[token] = resetTokenData{
-		email:     email,
-		expiresAt: time.Now().Add(15 * time.Minute),
+	// Store token in Redis with 15-minute TTL
+	if s.redisClient != nil {
+		key := fmt.Sprintf("reset:%s", token)
+		if err := s.redisClient.Set(ctx, key, email, 15*time.Minute).Err(); err != nil {
+			return "", fmt.Errorf("failed to store reset token: %w", err)
+		}
 	}
 
 	return token, nil
 }
 
-// ResetPassword resets password using reset token
+// ResetPassword resets password using a Redis-backed reset token.
 func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword string) error {
-	// Verify token
-	data, exists := s.resetTokens[token]
-	if !exists {
+	if s.redisClient == nil {
+		return errors.New("password reset service unavailable")
+	}
+
+	// Retrieve and validate token from Redis
+	key := fmt.Sprintf("reset:%s", token)
+	email, err := s.redisClient.Get(ctx, key).Result()
+	if err != nil {
 		return errors.New("invalid or expired reset token")
 	}
 
-	if time.Now().After(data.expiresAt) {
-		delete(s.resetTokens, token)
-		return errors.New("reset token has expired")
-	}
-
-	// Get user
-	user, err := s.userRepo.GetByEmail(ctx, data.email)
+	// Get user by email
+	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return errors.New("user not found")
 	}
@@ -330,14 +294,14 @@ func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword stri
 		return err
 	}
 
-	// Update password
+	// Update password in DB
 	user.PasswordHash = hashedPassword
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return err
 	}
 
-	// Delete used token
-	delete(s.resetTokens, token)
+	// Delete the used token from Redis (one-time use)
+	s.redisClient.Del(ctx, key)
 
 	return nil
 }
@@ -347,7 +311,7 @@ func (s *AuthService) GetUserByEmail(ctx context.Context, email string) (*models
 	return s.userRepo.GetByEmail(ctx, email)
 }
 
-// UpdateProfile updates a user's name, avatar_url, and skills.
+// UpdateProfile updates a user's name, avatar_url, bio, skills, and resume_url.
 func (s *AuthService) UpdateProfile(ctx context.Context, userID string, req *models.UpdateProfileRequest) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -356,10 +320,20 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID string, req *mod
 	if req.Name != "" {
 		user.Name = req.Name
 	}
+	user.AvatarURL = req.AvatarURL
+	user.Bio = req.Bio
+	user.Skills = req.Skills
+	user.ResumeURL = req.ResumeURL
+	
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
 	return user, nil
+}
+
+// GetUserProfile gets a user's full profile including stats and history.
+func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (*models.UserProfile, error) {
+	return s.userRepo.GetProfile(ctx, userID)
 }
 
 // ChangePassword changes a user's password, rejecting if new == current.

@@ -75,3 +75,39 @@ func (r *NotificationRepository) CountUnread(ctx context.Context, userID string)
 	).Scan(&count)
 	return count, err
 }
+
+// DeadlineTask holds the minimal task info needed for deadline reminders.
+type DeadlineTask struct {
+	ID         string
+	Title      string
+	AssignedTo *string
+}
+
+// GetTasksDueWithin24Hours returns tasks that are assigned, not finished,
+// and have a deadline between now and 24 hours from now.
+func (r *NotificationRepository) GetTasksDueWithin24Hours(ctx context.Context) ([]DeadlineTask, error) {
+	query := `
+		SELECT id, title, assigned_to::text
+		FROM tasks
+		WHERE assigned_to IS NOT NULL
+		  AND status NOT IN ('completed', 'closed')
+		  AND deadline > NOW()
+		  AND deadline <= NOW() + INTERVAL '24 hours'
+	`
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []DeadlineTask
+	for rows.Next() {
+		var t DeadlineTask
+		if err := rows.Scan(&t.ID, &t.Title, &t.AssignedTo); err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, t)
+	}
+	return tasks, nil
+}
+

@@ -108,6 +108,18 @@ export default function TaskCard({
           </div>
         </div>
 
+        {/* Owner row */}
+        <div className="flex items-center justify-between text-xs border-t border-border/50 pt-3 pb-1">
+          <span className="text-text-tertiary">Posted by</span>
+          <button 
+            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${task.owner_id}`) }}
+            className="font-medium text-text-primary hover:text-primary transition-colors truncate max-w-[150px]"
+            title={task.owner_name}
+          >
+            {task.owner_name || 'Organization Member'}
+          </button>
+        </div>
+
         {/* Footer */}
         {showActions && (
           <div className="flex items-center gap-2 pt-3 border-t border-border">

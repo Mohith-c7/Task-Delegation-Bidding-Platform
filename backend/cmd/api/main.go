@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -123,8 +124,9 @@ func main() {
 	}
 	router := gin.Default()
 
-	// Middleware
+	// Global middleware
 	router.Use(middleware.CORSMiddleware(cfg))
+	router.Use(middleware.RateLimit(redisClient, "ip", 100, time.Minute)) // 100 req/min per IP
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
@@ -160,6 +162,8 @@ func main() {
 		protected.Use(middleware.AuthMiddleware(cfg))
 		{
 			protected.GET("/users/me", authHandler.GetMe)
+			protected.GET("/users/me/profile", authHandler.GetMyProfile)
+			protected.GET("/users/:id/profile", authHandler.GetPublicProfile)
 			protected.PUT("/users/me", authHandler.UpdateMe)
 			protected.PUT("/users/me/password", authHandler.ChangePassword)
 			protected.PUT("/users/me/notifications", authHandler.UpdateNotificationPrefs)

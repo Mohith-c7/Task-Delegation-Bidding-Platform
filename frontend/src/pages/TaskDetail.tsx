@@ -16,7 +16,7 @@ import { cn } from '../design-system/utils'
 interface TaskDetailData {
   id: string; title: string; description: string; skills: string[]
   deadline: string; priority: string; status: string
-  owner_id: string; assigned_to?: string; org_id?: string
+  owner_id: string; owner_name: string; assigned_to?: string; org_id?: string
   rating?: number; points?: number
   created_at: string; updated_at: string
   activity: Array<{ id: string; event_type: string; field_name?: string; old_value?: string; new_value?: string; actor_name?: string; created_at: string }>
@@ -342,11 +342,28 @@ export default function TaskDetail() {
                   ))}
                 </div>
               </div>
+              {task.owner_id && (
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="w-4 h-4 text-[var(--color-on-surface-variant)]" />
+                  <span className="text-[var(--color-on-surface-variant)]">Posted by:</span>
+                  <button 
+                    onClick={() => navigate(`/profile/${task.owner_id}`)}
+                    className="text-[var(--color-primary)] font-medium truncate hover:underline"
+                  >
+                    {task.owner_name || 'User'}
+                  </button>
+                </div>
+              )}
               {task.assigned_to && (
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-[var(--color-on-surface-variant)]" />
                   <span className="text-[var(--color-on-surface-variant)]">Assigned to:</span>
-                  <span className="text-[var(--color-on-surface)] font-medium truncate">{task.assigned_to}</span>
+                  <button 
+                    onClick={() => navigate(`/profile/${task.assigned_to}`)}
+                    className="text-[var(--color-primary)] font-medium truncate hover:underline"
+                  >
+                    {task.assigned_to}
+                  </button>
                 </div>
               )}
             </Card>

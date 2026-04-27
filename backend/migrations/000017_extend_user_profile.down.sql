@@ -1,0 +1,7 @@
+DROP INDEX IF EXISTS idx_users_skills;
+
+ALTER TABLE users
+  DROP COLUMN IF EXISTS bio,
+  DROP COLUMN IF EXISTS avatar_url,
+  DROP COLUMN IF EXISTS skills,
+  DROP COLUMN IF EXISTS resume_url;

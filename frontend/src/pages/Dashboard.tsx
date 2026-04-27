@@ -9,7 +9,7 @@ import PlaceBidModal from '../components/bids/PlaceBidModal'
 import ViewBidsModal from '../components/bids/ViewBidsModal'
 import { Button, SkeletonCard, EmptyState, ConfirmModal } from '../design-system'
 import { useToast } from '../design-system'
-import { Plus, LayoutGrid, List, TrendingUp, CheckCircle2, Clock3, Layers, AlertCircle } from 'lucide-react'
+import { Plus, LayoutGrid, List, TrendingUp, CheckCircle2, Clock3, Layers, AlertCircle, Search, Filter, X } from 'lucide-react'
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
@@ -31,6 +31,7 @@ const SEED_TASKS: Task[] = [
     priority: 'high',
     status: 'open',
     owner_id: '00000000-0000-0000-0000-000000000001',
+    owner_name: 'Seed User',
     assigned_to: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -45,6 +46,7 @@ const SEED_TASKS: Task[] = [
     priority: 'critical',
     status: 'open',
     owner_id: '00000000-0000-0000-0000-000000000002',
+    owner_name: 'Seed User',
     assigned_to: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -59,6 +61,7 @@ const SEED_TASKS: Task[] = [
     priority: 'medium',
     status: 'open',
     owner_id: '00000000-0000-0000-0000-000000000003',
+    owner_name: 'Seed User',
     assigned_to: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -73,6 +76,7 @@ const SEED_TASKS: Task[] = [
     priority: 'high',
     status: 'open',
     owner_id: '00000000-0000-0000-0000-000000000004',
+    owner_name: 'Seed User',
     assigned_to: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -87,6 +91,7 @@ const SEED_TASKS: Task[] = [
     priority: 'critical',
     status: 'open',
     owner_id: '00000000-0000-0000-0000-000000000005',
+    owner_name: 'Seed User',
     assigned_to: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -101,6 +106,7 @@ const SEED_TASKS: Task[] = [
     priority: 'critical',
     status: 'open',
     owner_id: '00000000-0000-0000-0000-000000000006',
+    owner_name: 'Seed User',
     assigned_to: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -115,6 +121,7 @@ const SEED_TASKS: Task[] = [
     priority: 'medium',
     status: 'open',
     owner_id: '00000000-0000-0000-0000-000000000007',
+    owner_name: 'Seed User',
     assigned_to: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -129,6 +136,7 @@ const SEED_TASKS: Task[] = [
     priority: 'critical',
     status: 'in_progress',
     owner_id: '00000000-0000-0000-0000-000000000001',
+    owner_name: 'Seed User',
     assigned_to: '00000000-0000-0000-0000-000000000003',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -143,6 +151,7 @@ const SEED_TASKS: Task[] = [
     priority: 'low',
     status: 'open',
     owner_id: '00000000-0000-0000-0000-000000000008',
+    owner_name: 'Seed User',
     assigned_to: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -165,19 +174,47 @@ export default function Dashboard() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const { error: toastError } = useToast()
 
+  // Advanced search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  const [priorityFilter, setPriorityFilter] = useState('')
+  const [timeframeFilter, setTimeframeFilter] = useState('') // 'today', 'week', 'month'
+
   useEffect(() => {
     if (!user) { navigate('/'); return }
-    loadTasks()
-  }, [user, navigate, filter])
+    const delayDebounce = setTimeout(() => {
+      loadTasks()
+    }, 300)
+    return () => clearTimeout(delayDebounce)
+  }, [user, navigate, filter, searchQuery, priorityFilter, timeframeFilter])
 
   const loadTasks = async () => {
     try {
       setLoading(true)
       setApiError(null)
-      const data = await taskService.getAllTasks(filter === 'all' ? '' : filter)
+
+      let deadline_from, deadline_to
+      if (timeframeFilter === 'today') {
+        deadline_from = new Date().toISOString()
+        deadline_to = new Date(Date.now() + 86400000).toISOString()
+      } else if (timeframeFilter === 'week') {
+        deadline_from = new Date().toISOString()
+        deadline_to = new Date(Date.now() + 7 * 86400000).toISOString()
+      } else if (timeframeFilter === 'month') {
+        deadline_from = new Date().toISOString()
+        deadline_to = new Date(Date.now() + 30 * 86400000).toISOString()
+      }
+
+      const data = await taskService.getAllTasks({ 
+        status: filter === 'all' ? undefined : filter,
+        q: searchQuery || undefined,
+        priority: priorityFilter || undefined,
+        deadline_from,
+        deadline_to
+      })
       // Merge API tasks with seed tasks (API tasks take precedence, seeds fill the rest)
-      if (data && data.length > 0) {
-        setTasks(data)
+      if (data && data.tasks && data.tasks.length > 0) {
+        setTasks(data.tasks)
       } else {
         // API returned empty — show seed tasks filtered by status
         const filtered = filter === 'all'
@@ -267,37 +304,104 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Filter + view toggle */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 bg-surface-2 border border-border rounded-xl p-1 overflow-x-auto">
-            {STATUS_FILTERS.map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => setFilter(value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
-                  filter === value
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-3'
-                }`}
+        {/* Filter + view toggle + search bar */}
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 bg-surface-2 border border-border rounded-xl p-1 overflow-x-auto w-full sm:w-auto">
+              {STATUS_FILTERS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setFilter(value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
+                    filter === value
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-3'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search tasks..." 
+                  className="w-full pl-9 pr-4 py-2 bg-surface-2 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2 border rounded-xl transition-all ${showFilters ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface-2 border-border text-text-secondary hover:text-text-primary'}`}
               >
-                {label}
+                <Filter className="w-4 h-4" />
               </button>
-            ))}
+
+              <div className="flex items-center gap-1 bg-surface-2 border border-border rounded-xl p-1 shrink-0 hidden sm:flex">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-primary'}`}
+                >
+                  <LayoutGrid size={15} />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-primary'}`}
+                >
+                  <List size={15} />
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-1 bg-surface-2 border border-border rounded-xl p-1 shrink-0">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-primary'}`}
-            >
-              <LayoutGrid size={15} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-primary'}`}
-            >
-              <List size={15} />
-            </button>
-          </div>
+
+          {/* Advanced Filters Panel */}
+          {showFilters && (
+            <div className="p-4 bg-surface-2 border border-border rounded-xl animate-in slide-in-from-top-2 flex flex-wrap gap-4 items-end">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-text-secondary">Priority</label>
+                <select 
+                  value={priorityFilter} 
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="w-full sm:w-40 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-primary"
+                >
+                  <option value="">All Priorities</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-text-secondary">Timeframe</label>
+                <select 
+                  value={timeframeFilter} 
+                  onChange={(e) => setTimeframeFilter(e.target.value)}
+                  className="w-full sm:w-40 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-primary"
+                >
+                  <option value="">Any Time</option>
+                  <option value="today">Due Today</option>
+                  <option value="week">Due This Week</option>
+                  <option value="month">Due This Month</option>
+                </select>
+              </div>
+              <button 
+                onClick={() => { setPriorityFilter(''); setTimeframeFilter(''); setSearchQuery('') }}
+                className="text-xs font-medium text-text-tertiary hover:text-text-primary underline px-2 py-2"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
