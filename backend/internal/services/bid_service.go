@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/yourusername/task-delegation-platform/internal/models"
 )
@@ -28,6 +29,7 @@ type bidRepository interface {
 type bidTaskRepository interface {
 	GetByID(ctx context.Context, id string) (*models.Task, error)
 	Update(ctx context.Context, id string, task *models.Task) error
+	AppendActivity(ctx context.Context, a *models.ActivityEntry) error
 }
 
 type bidUserRepository interface {
@@ -76,6 +78,16 @@ func (s *BidService) CreateBid(ctx context.Context, taskID string, req *models.C
 		return nil, errors.New("you have already placed a bid on this task")
 	}
 
+	// Validate estimated completion is in the future
+	if !req.EstimatedCompletion.After(time.Now()) {
+		return nil, errors.New("estimated completion date must be in the future")
+	}
+
+	// Validate estimated completion does not exceed the task deadline
+	if req.EstimatedCompletion.After(task.Deadline) {
+		return nil, errors.New("estimated completion date cannot be after the task deadline")
+	}
+
 	// Create bid
 	bid := &models.Bid{
 		TaskID:              taskID,
@@ -89,6 +101,13 @@ func (s *BidService) CreateBid(ctx context.Context, taskID string, req *models.C
 	if err := s.bidRepo.Create(ctx, bid); err != nil {
 		return nil, err
 	}
+
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    taskID,
+		OrgID:     optionalStringPtr(task.OrgID),
+		ActorID:   &bidderID,
+		EventType: models.ActivityBidPlaced,
+	})
 
 	// Notify task owner
 	if s.notifService != nil {
@@ -159,11 +178,44 @@ func (s *BidService) ApproveBid(ctx context.Context, bidID string, approverID st
 	}
 
 	// Update task status and assign to bidder
+	oldStatus := string(task.Status)
+	oldAssignee := ""
+	if task.AssignedTo != nil {
+		oldAssignee = *task.AssignedTo
+	}
 	task.Status = models.StatusAssigned
 	task.AssignedTo = &bid.BidderID
 	if err := s.taskRepo.Update(ctx, task.ID, task); err != nil {
 		return err
 	}
+
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    task.ID,
+		OrgID:     optionalStringPtr(task.OrgID),
+		ActorID:   &approverID,
+		EventType: models.ActivityBidApproved,
+	})
+	statusField := "status"
+	newStatus := string(task.Status)
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    task.ID,
+		OrgID:     optionalStringPtr(task.OrgID),
+		ActorID:   &approverID,
+		EventType: models.ActivityStatusChanged,
+		FieldName: &statusField,
+		OldValue:  &oldStatus,
+		NewValue:  &newStatus,
+	})
+	assigneeField := "assigned_to"
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    task.ID,
+		OrgID:     optionalStringPtr(task.OrgID),
+		ActorID:   &approverID,
+		EventType: models.ActivityFieldUpdated,
+		FieldName: &assigneeField,
+		OldValue:  &oldAssignee,
+		NewValue:  &bid.BidderID,
+	})
 
 	// Notify bidder
 	if s.notifService != nil {
@@ -215,6 +267,13 @@ func (s *BidService) RejectBid(ctx context.Context, bidID string, approverID str
 	if err := s.bidRepo.UpdateStatus(ctx, bidID, models.BidRejected, &approverID); err != nil {
 		return err
 	}
+
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    task.ID,
+		OrgID:     optionalStringPtr(task.OrgID),
+		ActorID:   &approverID,
+		EventType: models.ActivityBidRejected,
+	})
 
 	// Notify bidder
 	if s.notifService != nil {

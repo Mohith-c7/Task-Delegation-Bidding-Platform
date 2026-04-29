@@ -47,8 +47,9 @@ func (m *mockBidRepo) BidExists(_ context.Context, _, _ string) (bool, error) {
 }
 
 type mockBidTaskRepo struct {
-	task        *models.Task
-	updatedTask *models.Task
+	task            *models.Task
+	updatedTask     *models.Task
+	appendCallCount int
 }
 
 func (m *mockBidTaskRepo) GetByID(_ context.Context, _ string) (*models.Task, error) {
@@ -59,6 +60,10 @@ func (m *mockBidTaskRepo) GetByID(_ context.Context, _ string) (*models.Task, er
 }
 func (m *mockBidTaskRepo) Update(_ context.Context, _ string, task *models.Task) error {
 	m.updatedTask = task
+	return nil
+}
+func (m *mockBidTaskRepo) AppendActivity(_ context.Context, _ *models.ActivityEntry) error {
+	m.appendCallCount++
 	return nil
 }
 
@@ -146,5 +151,8 @@ func TestApproveBid_TaskAutoAssigned(t *testing.T) {
 	}
 	if !bidRepo.rejected {
 		t.Fatal("expected other pending bids to be rejected")
+	}
+	if taskRepo.appendCallCount == 0 {
+		t.Fatal("expected bid approval activity to be recorded")
 	}
 }

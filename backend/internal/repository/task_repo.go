@@ -205,12 +205,16 @@ func (r *TaskRepository) GetTaskDetail(ctx context.Context, id string) (*models.
 
 	// Activity
 	actRows, err := r.db.Query(ctx,
-		`SELECT id, task_id, org_id, actor_id, event_type, field_name, old_value, new_value, created_at FROM activity_feed WHERE task_id = $1 ORDER BY created_at ASC`, id)
+		`SELECT a.id, a.task_id, a.org_id, a.actor_id, a.event_type, a.field_name, a.old_value, a.new_value, a.created_at, COALESCE(u.name, 'System') AS actor_name
+		 FROM activity_feed a
+		 LEFT JOIN users u ON u.id = a.actor_id
+		 WHERE a.task_id = $1
+		 ORDER BY a.created_at ASC`, id)
 	if err == nil {
 		defer actRows.Close()
 		for actRows.Next() {
 			var a models.ActivityEntry
-			_ = actRows.Scan(&a.ID, &a.TaskID, &a.OrgID, &a.ActorID, &a.EventType, &a.FieldName, &a.OldValue, &a.NewValue, &a.CreatedAt)
+			_ = actRows.Scan(&a.ID, &a.TaskID, &a.OrgID, &a.ActorID, &a.EventType, &a.FieldName, &a.OldValue, &a.NewValue, &a.CreatedAt, &a.ActorName)
 			detail.Activity = append(detail.Activity, a)
 		}
 	}

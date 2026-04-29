@@ -10,11 +10,12 @@ import (
 )
 
 type mockTaskRepo struct {
-	task           *models.Task
-	updateCalled   bool
-	appendCalled   bool
-	rateTaskErr    error
-	rateTaskCalled bool
+	task            *models.Task
+	updateCalled    bool
+	appendCalled    bool
+	rateTaskErr     error
+	rateTaskCalled  bool
+	createReviewErr error
 }
 
 func (m *mockTaskRepo) Create(_ context.Context, _ *models.Task) error { return nil }
@@ -53,6 +54,9 @@ func (m *mockTaskRepo) RateTask(_ context.Context, _ string, _, _ int) error {
 	return m.rateTaskErr
 }
 func (m *mockTaskRepo) CreateReview(_ context.Context, taskID, reviewerID string, req *models.CreateUserReviewRequest) (*models.UserReview, error) {
+	if m.createReviewErr != nil {
+		return nil, m.createReviewErr
+	}
 	return &models.UserReview{
 		ID:         "review-1",
 		TaskID:     taskID,
@@ -88,8 +92,8 @@ func TestTransitionStatus_ValidTransition(t *testing.T) {
 
 func TestRateTask_OnlyCompletedTasks(t *testing.T) {
 	repo := &mockTaskRepo{
-		task:        &models.Task{ID: "task-1", OwnerID: "owner-1", Status: models.StatusAssigned},
-		rateTaskErr: errors.New("only completed tasks can be rated"),
+		task:            &models.Task{ID: "task-1", OwnerID: "owner-1", Status: models.StatusAssigned},
+		createReviewErr: errors.New("only completed tasks can be reviewed"),
 	}
 	svc := NewTaskService(repo)
 
@@ -101,13 +105,30 @@ func TestRateTask_OnlyCompletedTasks(t *testing.T) {
 
 func TestRateTask_CannotRateTwice(t *testing.T) {
 	repo := &mockTaskRepo{
-		task:        &models.Task{ID: "task-1", OwnerID: "owner-1", Status: models.StatusCompleted},
-		rateTaskErr: errors.New("task already rated"),
+		task:            &models.Task{ID: "task-1", OwnerID: "owner-1", Status: models.StatusCompleted},
+		createReviewErr: errors.New("task already reviewed"),
 	}
 	svc := NewTaskService(repo)
 
 	err := svc.RateTask(context.Background(), "task-1", "owner-1", 5, 100)
 	if err == nil {
 		t.Fatal("expected error when rating twice")
+	}
+}
+
+func TestRateTask_UsesReviewSafePath(t *testing.T) {
+	repo := &mockTaskRepo{
+		task: &models.Task{ID: "task-1", OwnerID: "owner-1", Status: models.StatusCompleted},
+	}
+	svc := NewTaskService(repo)
+
+	if err := svc.RateTask(context.Background(), "task-1", "owner-1", 5, 100); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if repo.rateTaskCalled {
+		t.Fatal("expected legacy rating endpoint to use CreateReview instead of direct RateTask")
+	}
+	if !repo.appendCalled {
+		t.Fatal("expected review activity to be appended")
 	}
 }

@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
+	"time"
 
 	"github.com/yourusername/task-delegation-platform/internal/models"
 	"github.com/yourusername/task-delegation-platform/internal/repository"
@@ -38,6 +40,11 @@ func (s *TaskService) SetBillingService(bs *BillingService) {
 }
 
 func (s *TaskService) CreateTask(ctx context.Context, req *models.CreateTaskRequest, ownerID string) (*models.Task, error) {
+	// Validate deadline is in the future
+	if !req.Deadline.After(time.Now()) {
+		return nil, errors.New("deadline must be in the future")
+	}
+
 	// Check task limit if org-scoped
 	if s.billingService != nil && req.OrgID != "" {
 		if err := s.billingService.CheckTaskLimit(ctx, req.OrgID); err != nil {
@@ -60,6 +67,13 @@ func (s *TaskService) CreateTask(ctx context.Context, req *models.CreateTaskRequ
 	if err := s.taskRepo.Create(ctx, task); err != nil {
 		return nil, err
 	}
+
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    task.ID,
+		OrgID:     optionalStringPtr(task.OrgID),
+		ActorID:   &ownerID,
+		EventType: models.ActivityCreated,
+	})
 
 	return task, nil
 }
@@ -88,31 +102,65 @@ func (s *TaskService) UpdateTask(ctx context.Context, id string, req *models.Upd
 		return nil, errors.New("unauthorized: you can only update your own tasks")
 	}
 
-	// Update fields if provided
+	changes := make([]taskFieldChange, 0, 7)
+
 	if req.Title != "" {
+		changes = append(changes, taskFieldChange{"title", task.Title, req.Title})
 		task.Title = req.Title
 	}
 	if req.Description != "" {
+		changes = append(changes, taskFieldChange{"description", task.Description, req.Description})
 		task.Description = req.Description
 	}
 	if len(req.Skills) > 0 {
+		changes = append(changes, taskFieldChange{"skills", strings.Join(task.Skills, ", "), strings.Join(req.Skills, ", ")})
 		task.Skills = req.Skills
 	}
 	if len(req.Questions) > 0 {
+		changes = append(changes, taskFieldChange{"questions", strings.Join(task.Questions, " | "), strings.Join(req.Questions, " | ")})
 		task.Questions = req.Questions
 	}
 	if !req.Deadline.IsZero() {
+		// Deadline cannot be moved to the past
+		if !req.Deadline.After(time.Now()) {
+			return nil, errors.New("deadline must be in the future")
+		}
+		// Deadline cannot be changed once the task is no longer open
+		if task.Status != models.StatusOpen {
+			return nil, errors.New("cannot change deadline after task has been assigned")
+		}
+		changes = append(changes, taskFieldChange{"deadline", formatActivityTime(task.Deadline), formatActivityTime(req.Deadline)})
 		task.Deadline = req.Deadline
 	}
 	if req.Priority != "" {
+		changes = append(changes, taskFieldChange{"priority", string(task.Priority), string(req.Priority)})
 		task.Priority = req.Priority
 	}
 	if req.Status != "" {
+		changes = append(changes, taskFieldChange{"status", string(task.Status), string(req.Status)})
 		task.Status = req.Status
 	}
 
 	if err := s.taskRepo.Update(ctx, id, task); err != nil {
 		return nil, err
+	}
+
+	for _, change := range changes {
+		if change.oldValue == change.newValue {
+			continue
+		}
+		fieldName := change.fieldName
+		oldValue := change.oldValue
+		newValue := change.newValue
+		_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+			TaskID:    id,
+			OrgID:     optionalStringPtr(task.OrgID),
+			ActorID:   &userID,
+			EventType: models.ActivityFieldUpdated,
+			FieldName: &fieldName,
+			OldValue:  &oldValue,
+			NewValue:  &newValue,
+		})
 	}
 
 	return task, nil
@@ -227,7 +275,21 @@ func (s *TaskService) RateTask(ctx context.Context, taskID, ownerID string, rati
 	if task.OwnerID != ownerID {
 		return errors.New("unauthorized: only the task owner can rate the task")
 	}
-	return s.taskRepo.RateTask(ctx, taskID, rating, points)
+	_, err = s.taskRepo.CreateReview(ctx, taskID, ownerID, &models.CreateUserReviewRequest{
+		Rating: rating,
+		Points: points,
+	})
+	if err != nil {
+		return err
+	}
+
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    taskID,
+		OrgID:     optionalStringPtr(task.OrgID),
+		ActorID:   &ownerID,
+		EventType: models.ActivityReviewSubmitted,
+	})
+	return nil
 }
 
 func (s *TaskService) CreateReview(ctx context.Context, taskID, ownerID string, req *models.CreateUserReviewRequest) (*models.UserReview, error) {
@@ -250,4 +312,24 @@ func (s *TaskService) CreateReview(ctx context.Context, taskID, ownerID string, 
 	})
 
 	return review, nil
+}
+
+type taskFieldChange struct {
+	fieldName string
+	oldValue  string
+	newValue  string
+}
+
+func optionalStringPtr(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return &value
+}
+
+func formatActivityTime(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.Format(time.RFC3339)
 }
