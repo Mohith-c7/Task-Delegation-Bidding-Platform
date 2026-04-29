@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, CheckSquare, Gavel, BarChart3,
   TrendingUp, Settings, LogOut, ChevronLeft, ChevronRight,
-  Zap, Trophy,
+  Zap, Trophy, ClipboardList,
 } from 'lucide-react'
 import { cn } from '../../design-system/utils'
 import { Avatar } from '../../design-system'
@@ -20,6 +20,7 @@ const navItems = [
   { path: '/analytics',    label: 'Analytics',    icon: BarChart3 },
   { path: '/my-analytics', label: 'Performance',  icon: TrendingUp },
   { path: '/leaderboard',  label: 'Leaderboard',  icon: Trophy },
+  { path: '/manager/queue', label: 'Queue', icon: ClipboardList },
 ]
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {

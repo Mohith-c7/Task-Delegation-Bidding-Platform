@@ -206,6 +206,8 @@ func main() {
 			// Analytics routes
 			protected.GET("/analytics/dashboard", analyticsHandler.GetDashboardAnalytics)
 			protected.GET("/analytics/me", analyticsHandler.GetUserAnalytics)
+			protected.GET("/manager/queue", analyticsHandler.GetManagerQueue)
+			protected.GET("/workload/me", analyticsHandler.GetWorkloadSummary)
 
 			// Notification routes
 			protected.GET("/notifications", notifHandler.GetNotifications)

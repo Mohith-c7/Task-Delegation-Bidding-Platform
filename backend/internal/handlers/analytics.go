@@ -78,3 +78,31 @@ func (h *AnalyticsHandler) GetTrends(c *gin.Context) {
 	}
 	utils.SuccessResponse(c, 200, "Trends retrieved", trends)
 }
+
+func (h *AnalyticsHandler) GetManagerQueue(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		utils.ErrorResponse(c, 401, "Unauthorized")
+		return
+	}
+	queue, err := h.analyticsService.GetManagerQueue(c.Request.Context(), userID.(string))
+	if err != nil {
+		utils.ErrorResponse(c, 500, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Manager queue retrieved", queue)
+}
+
+func (h *AnalyticsHandler) GetWorkloadSummary(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		utils.ErrorResponse(c, 401, "Unauthorized")
+		return
+	}
+	workload, err := h.analyticsService.GetWorkloadSummary(c.Request.Context(), userID.(string))
+	if err != nil {
+		utils.ErrorResponse(c, 500, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Workload summary retrieved", workload)
+}

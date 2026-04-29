@@ -74,3 +74,11 @@ func (s *AnalyticsService) GetOrgDashboard(ctx context.Context, orgID string) (*
 func (s *AnalyticsService) GetTrends(ctx context.Context, orgID string, days int) ([]models.TaskTrend, error) {
 	return s.analyticsRepo.GetTrends(ctx, orgID, days)
 }
+
+func (s *AnalyticsService) GetManagerQueue(ctx context.Context, userID string) (*models.ManagerQueue, error) {
+	return s.analyticsRepo.GetManagerQueue(ctx, userID)
+}
+
+func (s *AnalyticsService) GetWorkloadSummary(ctx context.Context, userID string) (*models.WorkloadSummary, error) {
+	return s.analyticsRepo.GetWorkloadSummary(ctx, userID)
+}

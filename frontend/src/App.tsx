@@ -13,6 +13,7 @@ import Profile from './pages/Profile'
 import PublicProfile from './pages/PublicProfile'
 import Leaderboard from './pages/Leaderboard'
 import Notifications from './pages/Notifications'
+import ManagerQueue from './pages/ManagerQueue'
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
 import { useAuthStore } from './store/authStore'
 import { ToastProvider } from './design-system'
@@ -47,6 +48,7 @@ function App() {
             <Route path="/profile/:id"  element={<ProtectedRoute><PublicProfile /></ProtectedRoute>} />
             <Route path="/leaderboard"  element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+            <Route path="/manager/queue" element={<ProtectedRoute><ManagerQueue /></ProtectedRoute>} />
             <Route path="/onboarding"    element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
           </Routes>
         </Router>
