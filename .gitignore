@@ -28,6 +28,7 @@ frontend/coverage/
 # IDEs
 .vscode/
 .idea/
+.kiro/
 *.swp
 *.swo
 *~
@@ -68,6 +69,7 @@ docker-compose.override.yml
 *.swp
 *.bak
 *.cache
+bfg.jar
 
 # Build artifacts
 build/
