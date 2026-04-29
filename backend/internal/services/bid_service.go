@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"errors"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/yourusername/task-delegation-platform/internal/models"
@@ -137,7 +139,27 @@ func (s *BidService) CreateBid(ctx context.Context, taskID string, req *models.C
 }
 
 func (s *BidService) GetTaskBids(ctx context.Context, taskID string) ([]*models.BidWithDetails, error) {
-	return s.bidRepo.GetByTaskID(ctx, taskID)
+	task, err := s.taskRepo.GetByID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	bids, err := s.bidRepo.GetByTaskID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	for _, bid := range bids {
+		bid.MatchScore, bid.MatchFactors = scoreBidMatch(task, bid)
+	}
+	sort.SliceStable(bids, func(i, j int) bool {
+		if bids[i].Status != bids[j].Status {
+			return bids[i].Status == models.BidPending
+		}
+		if bids[i].MatchScore == bids[j].MatchScore {
+			return bids[i].CreatedAt.Before(bids[j].CreatedAt)
+		}
+		return bids[i].MatchScore > bids[j].MatchScore
+	})
+	return bids, nil
 }
 
 func (s *BidService) GetMyBids(ctx context.Context, bidderID string) ([]*models.Bid, error) {
@@ -299,3 +321,80 @@ func (s *BidService) RejectBid(ctx context.Context, bidID string, approverID str
 }
 
 func strPtr(s string) *string { return &s }
+
+func scoreBidMatch(task *models.Task, bid *models.BidWithDetails) (int, map[string]int) {
+	factors := map[string]int{
+		"skill_match": skillMatchScore(task.Skills, bid.BidderSkills),
+		"rating":      ratingScore(bid.BidderAvgRating),
+		"success":     successScore(bid.BidderTotalBids, bid.BidderApprovedBids),
+		"eta_fit":     etaFitScore(task.Deadline, bid.EstimatedCompletion),
+		"workload":    workloadScore(bid.BidderActiveTasks),
+	}
+	total := 0
+	for _, score := range factors {
+		total += score
+	}
+	return total, factors
+}
+
+func skillMatchScore(required, bidder []string) int {
+	if len(required) == 0 {
+		return 25
+	}
+	bidderSet := make(map[string]struct{}, len(bidder))
+	for _, skill := range bidder {
+		bidderSet[strings.ToLower(strings.TrimSpace(skill))] = struct{}{}
+	}
+	matches := 0
+	for _, skill := range required {
+		if _, ok := bidderSet[strings.ToLower(strings.TrimSpace(skill))]; ok {
+			matches++
+		}
+	}
+	return int(float64(matches) / float64(len(required)) * 35)
+}
+
+func ratingScore(avg float64) int {
+	if avg <= 0 {
+		return 8
+	}
+	return int((avg / 5.0) * 20)
+}
+
+func successScore(total, approved int) int {
+	if total == 0 {
+		return 8
+	}
+	return int(float64(approved) / float64(total) * 20)
+}
+
+func etaFitScore(deadline, estimate time.Time) int {
+	if estimate.After(deadline) {
+		return 0
+	}
+	totalWindow := time.Until(deadline)
+	if totalWindow <= 0 {
+		return 5
+	}
+	spare := deadline.Sub(estimate)
+	if spare < 0 {
+		return 0
+	}
+	if spare > totalWindow {
+		spare = totalWindow
+	}
+	return 10 + int((float64(spare)/float64(totalWindow))*5)
+}
+
+func workloadScore(activeTasks int) int {
+	switch {
+	case activeTasks <= 0:
+		return 10
+	case activeTasks == 1:
+		return 7
+	case activeTasks == 2:
+		return 4
+	default:
+		return 1
+	}
+}

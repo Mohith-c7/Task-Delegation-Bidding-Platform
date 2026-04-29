@@ -3,7 +3,7 @@ import { Task } from '../../services/taskService'
 import { bidService, BidWithDetails } from '../../services/bidService'
 import { useAuthStore } from '../../store/authStore'
 import { Button, Avatar, StatusBadge, Modal } from '../../design-system'
-import { Eye, CheckCircle2, XCircle, Clock, Calendar, Users, X } from 'lucide-react'
+import { Eye, CheckCircle2, XCircle, Clock, Calendar, Users, X, Sparkles } from 'lucide-react'
 import { cn } from '../../design-system/utils'
 
 interface ViewBidsModalProps {
@@ -145,14 +145,37 @@ export default function ViewBidsModal({ isOpen, task, onClose, onBidApproved }: 
                         <Avatar name={bid.bidder_name} size="sm" />
                         <div>
                           <p className="text-sm font-semibold text-text-primary">{bid.bidder_name}</p>
-                          <p className="text-xs text-text-tertiary">{bid.bidder_email}</p>
+                          <p className="text-xs text-text-tertiary">
+                            {bid.bidder_email}
+                            {typeof bid.bidder_avg_rating === 'number' && bid.bidder_avg_rating > 0 && (
+                              <span className="ml-1">Â· {bid.bidder_avg_rating.toFixed(1)} rating</span>
+                            )}
+                          </p>
                         </div>
                       </div>
-                      <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-semibold shrink-0', meta.bg, meta.color)}>
-                        <StatusIcon size={11} />
-                        {meta.label}
-                      </span>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-semibold shrink-0', meta.bg, meta.color)}>
+                          <StatusIcon size={11} />
+                          {meta.label}
+                        </span>
+                        {typeof bid.match_score === 'number' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-primary/8 text-primary border border-primary/15 text-xs font-bold">
+                            <Sparkles size={11} /> {bid.match_score}% match
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    {bid.match_factors && (
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 mb-4">
+                        {Object.entries(bid.match_factors).map(([label, value]) => (
+                          <div key={label} className="rounded-lg border border-border bg-surface-2 px-2 py-1.5">
+                            <p className="text-[10px] text-text-tertiary capitalize">{label.replace('_', ' ')}</p>
+                            <p className="text-xs font-bold text-text-primary">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Questionnaire Answers */}
                     {bid.answers && Object.keys(bid.answers).length > 0 && (

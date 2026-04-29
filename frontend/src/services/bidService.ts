@@ -17,6 +17,13 @@ export interface Bid {
 export interface BidWithDetails extends Bid {
   bidder_name: string
   bidder_email: string
+  bidder_skills?: string[]
+  bidder_avg_rating?: number
+  bidder_total_bids?: number
+  bidder_approved_bids?: number
+  bidder_active_tasks?: number
+  match_score?: number
+  match_factors?: Record<string, number>
 }
 
 export interface CreateBidRequest {

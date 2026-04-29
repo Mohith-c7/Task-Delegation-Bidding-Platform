@@ -52,11 +52,15 @@ func (r *BidRepository) GetByTaskID(ctx context.Context, taskID string) ([]*mode
 	query := `
 		SELECT b.id, b.task_id, b.bidder_id, b.message, b.estimated_completion,
 		       b.status, b.answers, b.approved_by, b.created_at, b.updated_at,
-		       u.name, u.email
+		       u.name, u.email, u.skills,
+		       CASE WHEN u.rating_count > 0 THEN (u.rating_sum::float / u.rating_count::float) ELSE 0 END AS avg_rating,
+		       (SELECT COUNT(*) FROM bids bx WHERE bx.bidder_id = b.bidder_id) AS total_bids,
+		       (SELECT COUNT(*) FROM bids bx WHERE bx.bidder_id = b.bidder_id AND bx.status = 'approved') AS approved_bids,
+		       (SELECT COUNT(*) FROM tasks tx WHERE tx.assigned_to = b.bidder_id AND tx.status IN ('assigned', 'in_progress', 'submitted_for_review', 'revision_requested')) AS active_tasks
 		FROM bids b
 		JOIN users u ON b.bidder_id = u.id
 		WHERE b.task_id = $1
-		ORDER BY b.created_at DESC
+		ORDER BY b.created_at ASC
 	`
 	rows, err := r.db.Query(ctx, query, taskID)
 	if err != nil {
@@ -70,7 +74,8 @@ func (r *BidRepository) GetByTaskID(ctx context.Context, taskID string) ([]*mode
 		err := rows.Scan(
 			&bid.ID, &bid.TaskID, &bid.BidderID, &bid.Message, &bid.EstimatedCompletion,
 			&bid.Status, &bid.Answers, &bid.ApprovedBy, &bid.CreatedAt, &bid.UpdatedAt,
-			&bid.BidderName, &bid.BidderEmail,
+			&bid.BidderName, &bid.BidderEmail, &bid.BidderSkills, &bid.BidderAvgRating,
+			&bid.BidderTotalBids, &bid.BidderApprovedBids, &bid.BidderActiveTasks,
 		)
 		if err != nil {
 			return nil, err
