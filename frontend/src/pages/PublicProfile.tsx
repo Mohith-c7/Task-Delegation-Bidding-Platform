@@ -67,6 +67,9 @@ export default function PublicProfile() {
               <div>
                 <h1 className="text-2xl font-bold text-text-primary">{profile?.name}</h1>
                 <p className="text-text-secondary">Platform Member</p>
+                <p className="text-xs text-text-tertiary mt-1">
+                  Member since {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '-'}
+                </p>
                 {profile?.bio && <p className="text-sm text-text-tertiary mt-2 max-w-lg">{profile.bio}</p>}
                 
                 {profile?.resume_url && (
@@ -129,12 +132,12 @@ export default function PublicProfile() {
             <Card className="p-6 space-y-4">
               <h2 className="font-bold text-lg text-text-primary border-b border-border pb-2">Delegation Stats</h2>
               <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-text-secondary">Total Tasks Posted</span>
-                <span className="font-semibold text-text-primary">{profile?.total_tasks_posted || 0}</span>
+                <span className="text-text-secondary">Tasks Completed</span>
+                <span className="font-semibold text-text-primary">{profile?.task_history?.length || 0}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-text-secondary">Tasks Completed</span>
-                <span className="font-semibold text-text-primary">{profile?.total_tasks_completed || 0}</span>
+                <span className="text-text-secondary">Total Points</span>
+                <span className="font-semibold text-text-primary">{profile?.total_points || 0}</span>
               </div>
             </Card>
             <Card className="p-6 space-y-4">
@@ -156,25 +159,39 @@ export default function PublicProfile() {
           <Card className="p-6">
             <h2 className="font-bold text-lg text-text-primary mb-4 pb-2 border-b border-border">Task History</h2>
             {(!profile?.task_history || profile.task_history.length === 0) ? (
-              <p className="text-text-tertiary text-center py-8">No tasks posted yet.</p>
+              <p className="text-text-tertiary text-center py-8">No completed tasks yet.</p>
             ) : (
-              <div className="space-y-4">
-                {profile.task_history.map(task => (
-                  <div key={task.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-surface-2 rounded-xl border border-border">
-                    <div className="flex-1">
-                      <Link to={`/tasks/${task.id}`} className="font-medium text-text-primary hover:text-primary transition-colors inline-block">{task.title}</Link>
-                      <p className="text-xs text-text-tertiary mt-1">Created: {new Date(task.created_at).toLocaleDateString()}</p>
-                    </div>
-                    <div className="flex items-center gap-3 mt-2 sm:mt-0">
-                      <span className="px-2.5 py-1 bg-surface-3 rounded-lg text-xs font-semibold capitalize text-text-secondary">{task.status.replace('_', ' ')}</span>
-                      {task.rating && (
-                        <div className="flex items-center gap-1 text-warning bg-warning/10 px-2 py-0.5 rounded-md text-xs font-bold">
-                          ★ {task.rating}/5
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-text-tertiary border-b border-border">
+                      <th className="py-2 pr-4">Task</th>
+                      <th className="py-2 pr-4">Priority</th>
+                      <th className="py-2 pr-4">Status</th>
+                      <th className="py-2 pr-4">Deadline</th>
+                      <th className="py-2 pr-4">Date Posted</th>
+                      <th className="py-2">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profile.task_history.map(task => (
+                      <tr key={task.id} className="border-b border-border/50">
+                        <td className="py-3 pr-4 font-medium text-text-primary">
+                          <Link to={`/tasks/${task.id}`} className="hover:text-primary transition-colors">{task.title}</Link>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className="px-2 py-0.5 rounded text-xs bg-surface-3 capitalize">{task.priority}</span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className="px-2 py-0.5 rounded text-xs bg-success/10 text-success capitalize">{task.status.replace('_', ' ')}</span>
+                        </td>
+                        <td className="py-3 pr-4 text-text-secondary">{new Date(task.deadline).toLocaleDateString()}</td>
+                        <td className="py-3 pr-4 text-text-secondary">{new Date(task.created_at).toLocaleDateString()}</td>
+                        <td className="py-3 text-text-secondary">{task.rating ? `★ ${task.rating}/5` : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </Card>

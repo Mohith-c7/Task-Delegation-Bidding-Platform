@@ -1,7 +1,5 @@
-import React from 'react'
 import { Task } from '../../services/taskService'
 import TaskCard from '../tasks/TaskCard'
-import { Card } from '../../design-system'
 import { cn } from '../../design-system/utils'
 
 interface KanbanBoardProps {

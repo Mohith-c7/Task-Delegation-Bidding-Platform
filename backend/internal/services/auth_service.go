@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -318,22 +319,45 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID string, req *mod
 		return nil, err
 	}
 	if req.Name != "" {
-		user.Name = req.Name
+		user.Name = strings.TrimSpace(req.Name)
 	}
-	user.AvatarURL = req.AvatarURL
-	user.Bio = req.Bio
+	user.AvatarURL = strings.TrimSpace(req.AvatarURL)
+	user.Bio = strings.TrimSpace(req.Bio)
 	user.Skills = req.Skills
-	user.ResumeURL = req.ResumeURL
-	
+	user.ResumeURL = strings.TrimSpace(req.ResumeURL)
+
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
+// UpdateNotificationPrefs stores notification preferences for the user.
+func (s *AuthService) UpdateNotificationPrefs(ctx context.Context, userID string, req *models.NotificationPrefsRequest) error {
+	return s.userRepo.UpdateNotificationPrefs(ctx, userID, req)
+}
+
 // GetUserProfile gets a user's full profile including stats and history.
 func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (*models.UserProfile, error) {
 	return s.userRepo.GetProfile(ctx, userID)
+}
+
+// GetPublicUserProfile returns a sanitized public profile with completed task history.
+func (s *AuthService) GetPublicUserProfile(ctx context.Context, userID string) (*models.UserProfile, error) {
+	profile, err := s.userRepo.GetProfile(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	completedHistory, err := s.userRepo.GetCompletedTaskHistoryForUser(ctx, userID)
+	if err == nil {
+		profile.TaskHistory = completedHistory
+	}
+
+	profile.Email = ""
+	profile.BidHistory = nil
+
+	return profile, nil
 }
 
 // ChangePassword changes a user's password, rejecting if new == current.

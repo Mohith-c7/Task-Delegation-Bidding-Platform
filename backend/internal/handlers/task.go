@@ -17,6 +17,16 @@ func NewTaskHandler(taskService *services.TaskService) *TaskHandler {
 	return &TaskHandler{taskService: taskService}
 }
 
+// CreateTask godoc
+// @Summary Create task
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param request body models.CreateTaskRequest true "Create task request"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks [post]
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var req models.CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -45,6 +55,21 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Task retrieved successfully", task)
 }
 
+// GetAllTasks godoc
+// @Summary Search and list tasks
+// @Tags tasks
+// @Produce json
+// @Param q query string false "Search query"
+// @Param status query string false "Task status"
+// @Param priority query string false "Task priority"
+// @Param sort query string false "Sort key"
+// @Param skills query []string false "Skills filter"
+// @Param page query int false "Page number"
+// @Param page_size query int false "Page size"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks [get]
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "25"))
@@ -72,6 +97,14 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Tasks retrieved successfully", result)
 }
 
+// GetMyTasks godoc
+// @Summary Get current user's tasks
+// @Tags tasks
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/my [get]
 func (h *TaskHandler) GetMyTasks(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	tasks, err := h.taskService.GetMyTasks(c.Request.Context(), userID.(string))
@@ -83,6 +116,17 @@ func (h *TaskHandler) GetMyTasks(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Your tasks retrieved successfully", tasks)
 }
 
+// UpdateTask godoc
+// @Summary Update task
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID"
+// @Param request body models.UpdateTaskRequest true "Update task request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id} [put]
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateTaskRequest
@@ -101,6 +145,15 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Task updated successfully", task)
 }
 
+// DeleteTask godoc
+// @Summary Delete task
+// @Tags tasks
+// @Produce json
+// @Param id path string true "Task ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id} [delete]
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	id := c.Param("id")
 	userID, _ := c.Get("user_id")
@@ -114,6 +167,14 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 }
 
 // GetTaskDetail returns full task detail with activity, comments, checklist.
+// @Summary Get task detail
+// @Tags tasks
+// @Produce json
+// @Param id path string true "Task ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id} [get]
 func (h *TaskHandler) GetTaskDetail(c *gin.Context) {
 	id := c.Param("id")
 	detail, err := h.taskService.GetTaskDetail(c.Request.Context(), id)
@@ -125,6 +186,16 @@ func (h *TaskHandler) GetTaskDetail(c *gin.Context) {
 }
 
 // TransitionStatus handles PATCH /tasks/:id/status
+// @Summary Transition task status
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID"
+// @Param request body object true "Status transition request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id}/status [patch]
 func (h *TaskHandler) TransitionStatus(c *gin.Context) {
 	id := c.Param("id")
 	userID, _ := c.Get("user_id")
@@ -144,6 +215,16 @@ func (h *TaskHandler) TransitionStatus(c *gin.Context) {
 }
 
 // AddComment handles POST /tasks/:id/comments
+// @Summary Add task comment
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID"
+// @Param request body object true "Comment body request"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id}/comments [post]
 func (h *TaskHandler) AddComment(c *gin.Context) {
 	id := c.Param("id")
 	userID, _ := c.Get("user_id")
@@ -163,6 +244,16 @@ func (h *TaskHandler) AddComment(c *gin.Context) {
 }
 
 // UpdateChecklist handles PUT /tasks/:id/checklist
+// @Summary Update task checklist
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID"
+// @Param request body object true "Checklist update request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id}/checklist [put]
 func (h *TaskHandler) UpdateChecklist(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
@@ -180,6 +271,16 @@ func (h *TaskHandler) UpdateChecklist(c *gin.Context) {
 }
 
 // RateTask handles POST /tasks/:id/rate
+// @Summary Rate completed task
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID"
+// @Param request body models.RateTaskRequest true "Rate task request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id}/rate [post]
 func (h *TaskHandler) RateTask(c *gin.Context) {
 	id := c.Param("id")
 	userID, _ := c.Get("user_id")
@@ -188,7 +289,7 @@ func (h *TaskHandler) RateTask(c *gin.Context) {
 		utils.ErrorResponse(c, 400, err.Error())
 		return
 	}
-	
+
 	if err := h.taskService.RateTask(c.Request.Context(), id, userID.(string), req.Rating, req.Points); err != nil {
 		utils.ErrorResponse(c, 400, err.Error())
 		return

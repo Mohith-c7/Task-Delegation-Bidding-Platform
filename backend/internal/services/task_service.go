@@ -9,11 +9,26 @@ import (
 )
 
 type TaskService struct {
-	taskRepo       *repository.TaskRepository
+	taskRepo       taskRepository
 	billingService *BillingService
 }
 
-func NewTaskService(taskRepo *repository.TaskRepository) *TaskService {
+type taskRepository interface {
+	Create(ctx context.Context, task *models.Task) error
+	GetByID(ctx context.Context, id string) (*models.Task, error)
+	GetAll(ctx context.Context, status string) ([]*models.Task, error)
+	GetByOwnerID(ctx context.Context, ownerID string) ([]*models.Task, error)
+	Update(ctx context.Context, id string, task *models.Task) error
+	Delete(ctx context.Context, id string) error
+	AppendActivity(ctx context.Context, a *models.ActivityEntry) error
+	CreateComment(ctx context.Context, c *models.Comment) error
+	UpsertChecklist(ctx context.Context, taskID string, items []models.ChecklistItem) error
+	GetTaskDetail(ctx context.Context, id string) (*models.TaskDetail, error)
+	SearchTasks(ctx context.Context, p repository.TaskSearchParams) (*repository.TaskSearchResult, error)
+	RateTask(ctx context.Context, taskID string, rating, points int) error
+}
+
+func NewTaskService(taskRepo taskRepository) *TaskService {
 	return &TaskService{taskRepo: taskRepo}
 }
 

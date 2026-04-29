@@ -1,3 +1,10 @@
+// @title Task Delegation Platform API
+// @version 1.0
+// @description API documentation for Task Delegation Platform.
+// @BasePath /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 package main
 
 import (
@@ -100,7 +107,7 @@ func main() {
 		// Set services in auth service
 		authService.SetEmailService(emailService)
 		authService.SetOTPService(otpService)
-		
+
 		// Set email service in other services
 		bidService.SetEmailService(emailService)
 		notifService.SetEmailService(emailService)

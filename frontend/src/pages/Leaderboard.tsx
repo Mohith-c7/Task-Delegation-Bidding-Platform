@@ -13,6 +13,7 @@ interface LeaderboardUser {
   total_points: number
   avg_rating: number
   tasks_done: number
+  bids_won: number
 }
 
 export default function Leaderboard() {
@@ -57,7 +58,8 @@ export default function Leaderboard() {
                     <th className="px-6 py-4">Contributor</th>
                     <th className="px-6 py-4 text-center">Points</th>
                     <th className="px-6 py-4 text-center">Avg Rating</th>
-                    <th className="px-6 py-4 text-center rounded-tr-xl">Tasks Done</th>
+                    <th className="px-6 py-4 text-center">Tasks Done</th>
+                    <th className="px-6 py-4 text-center rounded-tr-xl">Bids Won</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -116,6 +118,9 @@ export default function Leaderboard() {
                             <CheckCircle className="w-4 h-4 text-success" />
                             {user.tasks_done}
                           </div>
+                        </td>
+                        <td className="px-6 py-4 text-center font-semibold text-text-primary">
+                          {user.bids_won}
                         </td>
                       </tr>
                     )

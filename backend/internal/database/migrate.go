@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -79,16 +81,6 @@ func RunMigrations(pool *pgxpool.Pool) error {
 			END IF;
 		END $$;`,
 		`CREATE INDEX IF NOT EXISTS idx_users_email_verified ON users(email_verified);`,
-
-		// Insert test user with fixed UUID (john@example.com / password123)
-		`DO $$ BEGIN
-			IF NOT EXISTS (SELECT 1 FROM users WHERE id = '00000000-0000-0000-0000-000000000001') THEN
-				DELETE FROM users WHERE email = 'john@example.com';
-				INSERT INTO users (id, name, email, password_hash, email_verified, verified_at)
-				VALUES ('00000000-0000-0000-0000-000000000001', 'John Doe', 'john@example.com',
-					'$2a$10$YZcA2Bp65W2GThWSNniY3e9BfpVgjHnxnea08Y9KkH5UNmfeFUkiq', true, NOW());
-			END IF;
-		END $$;`,
 
 		// 000007: Create organizations table
 		`CREATE TABLE IF NOT EXISTS organizations (
@@ -455,6 +447,25 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		END $$;`,
 	}
 
+	// Seed a fixed local test user only in non-production environments.
+	appEnv := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
+	if appEnv == "" {
+		appEnv = strings.ToLower(strings.TrimSpace(os.Getenv("GO_ENV")))
+	}
+	if appEnv == "" {
+		appEnv = "development"
+	}
+	if appEnv != "production" {
+		migrations = append(migrations, `DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM users WHERE id = '00000000-0000-0000-0000-000000000001') THEN
+				DELETE FROM users WHERE email = 'john@example.com';
+				INSERT INTO users (id, name, email, password_hash, email_verified, verified_at)
+				VALUES ('00000000-0000-0000-0000-000000000001', 'John Doe', 'john@example.com',
+					'$2a$10$YZcA2Bp65W2GThWSNniY3e9BfpVgjHnxnea08Y9KkH5UNmfeFUkiq', true, NOW());
+			END IF;
+		END $$;`)
+	}
+
 	for i, migration := range migrations {
 		_, err := pool.Exec(ctx, migration)
 		if err != nil {
@@ -464,6 +475,8 @@ func RunMigrations(pool *pgxpool.Pool) error {
 	}
 
 	log.Println("✓ Database migrations completed")
-	log.Println("✓ Test user available: john@example.com / password123")
+	if appEnv != "production" {
+		log.Println("✓ Test user available: john@example.com / password123")
+	}
 	return nil
 }

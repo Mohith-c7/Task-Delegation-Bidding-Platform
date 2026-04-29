@@ -5,9 +5,12 @@ import { taskService, Task } from '../services/taskService'
 import Layout from '../components/common/Layout'
 import TaskCard from '../components/tasks/TaskCard'
 import CreateTaskModal from '../components/tasks/CreateTaskModal'
+import PlaceBidModal from '../components/bids/PlaceBidModal'
+import ViewBidsModal from '../components/bids/ViewBidsModal'
 import { Button, SkeletonCard, EmptyState, ConfirmModal } from '../design-system'
 import RecommendedTasks from '../components/dashboard/RecommendedTasks'
 import KanbanBoard from '../components/dashboard/KanbanBoard'
+import { Pagination } from '../components/common/Pagination'
 import { useToast } from '../design-system'
 import { Plus, LayoutGrid, List, Columns, TrendingUp, CheckCircle2, Clock3, Layers, AlertCircle, Search, Filter, X } from 'lucide-react'
 
@@ -178,7 +181,14 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [priorityFilter, setPriorityFilter] = useState('')
+  const [sortBy, setSortBy] = useState('created_at_desc')
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([])
+  const [skillInput, setSkillInput] = useState('')
   const [timeframeFilter, setTimeframeFilter] = useState('') // 'today', 'week', 'month'
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(25)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
   useEffect(() => {
     if (!user) { navigate('/'); return }
@@ -186,7 +196,7 @@ export default function Dashboard() {
       loadTasks()
     }, 300)
     return () => clearTimeout(delayDebounce)
-  }, [user, navigate, filter, searchQuery, priorityFilter, timeframeFilter])
+  }, [user, navigate, filter, searchQuery, priorityFilter, timeframeFilter, sortBy, selectedSkills, page])
 
   const loadTasks = async () => {
     try {
@@ -210,17 +220,25 @@ export default function Dashboard() {
         q: searchQuery || undefined,
         priority: priorityFilter || undefined,
         deadline_from,
-        deadline_to
+        deadline_to,
+        sort: sortBy,
+        skills: selectedSkills.length > 0 ? selectedSkills : undefined,
+        page,
+        page_size: pageSize,
       })
       // Merge API tasks with seed tasks (API tasks take precedence, seeds fill the rest)
       if (data && data.tasks && data.tasks.length > 0) {
         setTasks(data.tasks)
+        setTotal(data.total || data.tasks.length)
+        setTotalPages(data.total_pages || 1)
       } else {
         // API returned empty — show seed tasks filtered by status
         const filtered = filter === 'all'
           ? SEED_TASKS
           : SEED_TASKS.filter(t => t.status === filter)
         setTasks(filtered)
+        setTotal(filtered.length)
+        setTotalPages(1)
       }
     } catch (error: any) {
       console.error('Failed to load tasks:', error)
@@ -231,9 +249,24 @@ export default function Dashboard() {
         ? SEED_TASKS
         : SEED_TASKS.filter(t => t.status === filter)
       setTasks(filtered)
+      setTotal(filtered.length)
+      setTotalPages(1)
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleSkill = (skill: string) => {
+    setPage(1)
+    setSelectedSkills(prev => prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill])
+  }
+
+  const addSkillFilter = () => {
+    const value = skillInput.trim()
+    if (!value || selectedSkills.includes(value)) return
+    setPage(1)
+    setSelectedSkills(prev => [...prev, value])
+    setSkillInput('')
   }
 
   const handlePlaceBid = (task: Task) => {
@@ -311,7 +344,7 @@ export default function Dashboard() {
               {STATUS_FILTERS.map(({ value, label }) => (
                 <button
                   key={value}
-                  onClick={() => setFilter(value)}
+                  onClick={() => { setFilter(value); setPage(1) }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
                     filter === value
                       ? 'bg-primary text-white shadow-sm'
@@ -329,12 +362,12 @@ export default function Dashboard() {
                 <input 
                   type="text" 
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
                   placeholder="Search tasks..." 
                   className="w-full pl-9 pr-4 py-2 bg-surface-2 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary">
+                  <button onClick={() => { setSearchQuery(''); setPage(1) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -378,7 +411,7 @@ export default function Dashboard() {
                 <label className="text-xs font-semibold text-text-secondary">Priority</label>
                 <select 
                   value={priorityFilter} 
-                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  onChange={(e) => { setPriorityFilter(e.target.value); setPage(1) }}
                   className="w-full sm:w-40 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-primary"
                 >
                   <option value="">All Priorities</option>
@@ -392,7 +425,7 @@ export default function Dashboard() {
                 <label className="text-xs font-semibold text-text-secondary">Timeframe</label>
                 <select 
                   value={timeframeFilter} 
-                  onChange={(e) => setTimeframeFilter(e.target.value)}
+                  onChange={(e) => { setTimeframeFilter(e.target.value); setPage(1) }}
                   className="w-full sm:w-40 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-primary"
                 >
                   <option value="">Any Time</option>
@@ -401,8 +434,66 @@ export default function Dashboard() {
                   <option value="month">Due This Month</option>
                 </select>
               </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-text-secondary">Sort</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => { setSortBy(e.target.value); setPage(1) }}
+                  className="w-full sm:w-44 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-primary"
+                >
+                  <option value="created_at_desc">Newest</option>
+                  <option value="created_at_asc">Oldest</option>
+                  <option value="deadline_asc">Deadline soonest</option>
+                  <option value="deadline_desc">Deadline latest</option>
+                  <option value="priority_desc">Priority high-low</option>
+                </select>
+              </div>
+              <div className="space-y-1.5 min-w-[260px]">
+                <label className="text-xs font-semibold text-text-secondary">Skills</label>
+                <div className="flex gap-2">
+                  <input
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkillFilter() } }}
+                    placeholder="Add skill filter"
+                    className="w-full bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    onClick={addSkillFilter}
+                    className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:opacity-90"
+                  >
+                    Add
+                  </button>
+                </div>
+                {user?.skills && user.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {user.skills.slice(0, 8).map(skill => (
+                      <button
+                        key={skill}
+                        onClick={() => toggleSkill(skill)}
+                        className={`px-2 py-0.5 rounded-md text-xs border ${selectedSkills.includes(skill) ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface border-border text-text-secondary'}`}
+                      >
+                        {skill}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedSkills.map(skill => (
+                      <button
+                        key={skill}
+                        onClick={() => toggleSkill(skill)}
+                        className="px-2 py-0.5 rounded-md text-xs bg-primary/10 border border-primary/30 text-primary"
+                      >
+                        {skill} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button 
-                onClick={() => { setPriorityFilter(''); setTimeframeFilter(''); setSearchQuery('') }}
+                onClick={() => { setPriorityFilter(''); setTimeframeFilter(''); setSearchQuery(''); setSortBy('created_at_desc'); setSelectedSkills([]); setPage(1) }}
                 className="text-xs font-medium text-text-tertiary hover:text-text-primary underline px-2 py-2"
               >
                 Clear all filters
@@ -452,6 +543,20 @@ export default function Dashboard() {
             ))}
           </div>
         )
+      )}
+
+      {!loading && total > 0 && (
+        <div className="mt-6">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={pageSize}
+            onPageChange={(nextPage) => {
+              if (nextPage >= 1 && nextPage <= totalPages) setPage(nextPage)
+            }}
+          />
+        </div>
       )}
 
       <CreateTaskModal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} onSuccess={loadTasks} />

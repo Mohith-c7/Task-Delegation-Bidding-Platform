@@ -15,6 +15,15 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
+// Register godoc
+// @Summary Register user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body models.RegisterRequest true "Register request"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -24,7 +33,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	// Check if OTP flow is requested
 	useOTP := c.Query("use_otp") == "true"
-	
+
 	if useOTP {
 		// Send OTP for email verification
 		err := h.authService.RegisterWithOTP(c.Request.Context(), &req)
@@ -32,10 +41,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			utils.ErrorResponse(c, 400, err.Error())
 			return
 		}
-		
-		// Store registration data temporarily (in production, use Redis)
-		c.Set("pending_registration", &req)
-		
+
 		utils.SuccessResponse(c, 200, "OTP sent to your email", gin.H{
 			"message": "Please verify your email with the OTP sent",
 			"email":   req.Email,
@@ -53,6 +59,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	utils.SuccessResponse(c, 201, "User registered successfully", response)
 }
 
+// Login godoc
+// @Summary Login user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body models.LoginRequest true "Login request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -69,6 +84,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Login successful", response)
 }
 
+// GetMe godoc
+// @Summary Get current user
+// @Tags users
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /users/me [get]
 func (h *AuthHandler) GetMe(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
@@ -89,7 +112,7 @@ func (h *AuthHandler) VerifyEmailAndRegister(c *gin.Context) {
 		Password string `json:"password" binding:"required,min=6"`
 		OTP      string `json:"otp" binding:"required,len=6"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, 400, err.Error())
 		return
@@ -115,11 +138,19 @@ func (h *AuthHandler) VerifyEmailAndRegister(c *gin.Context) {
 }
 
 // ForgotPassword initiates password reset
+// @Summary Start password reset
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body object true "Forgot password request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /auth/forgot-password [post]
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, 400, err.Error())
 		return
@@ -134,12 +165,20 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 }
 
 // ResetPassword resets password with token
+// @Summary Complete password reset
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body object true "Reset password request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /auth/reset-password [post]
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req struct {
 		ResetToken  string `json:"reset_token" binding:"required"`
 		NewPassword string `json:"new_password" binding:"required,min=6"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, 400, err.Error())
 		return
@@ -157,6 +196,15 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 }
 
 // UpdateMe updates the authenticated user's profile.
+// @Summary Update current user profile
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body models.UpdateProfileRequest true "Update profile request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /users/me [put]
 func (h *AuthHandler) UpdateMe(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	var req models.UpdateProfileRequest
@@ -173,6 +221,15 @@ func (h *AuthHandler) UpdateMe(c *gin.Context) {
 }
 
 // ChangePassword changes the authenticated user's password.
+// @Summary Change password
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body models.ChangePasswordRequest true "Change password request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /users/me/password [put]
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	var req models.ChangePasswordRequest
@@ -188,11 +245,36 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 }
 
 // UpdateNotificationPrefs updates notification preferences (stub — stored in user profile).
+// @Summary Update notification preferences
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body models.NotificationPrefsRequest true "Notification preferences"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /users/me/notifications [put]
 func (h *AuthHandler) UpdateNotificationPrefs(c *gin.Context) {
-	utils.SuccessResponse(c, 200, "Notification preferences updated", nil)
+	userID, _ := c.Get("user_id")
+	var req models.NotificationPrefsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	if err := h.authService.UpdateNotificationPrefs(c.Request.Context(), userID.(string), &req); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Notification preferences updated", req)
 }
 
 // Logout invalidates the user's tokens.
+// @Summary Logout current user
+// @Tags auth
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	_ = h.authService.InvalidateUserTokens(c.Request.Context(), userID.(string))
@@ -200,6 +282,14 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // RefreshToken issues a new access token from a valid refresh token.
+// @Summary Refresh access token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body object true "Refresh token request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -226,6 +316,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 }
 
 // GetMyProfile returns the complete profile of the authenticated user.
+// @Summary Get full private profile
+// @Tags users
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /users/me/profile [get]
 func (h *AuthHandler) GetMyProfile(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
@@ -239,25 +336,34 @@ func (h *AuthHandler) GetMyProfile(c *gin.Context) {
 }
 
 // GetPublicProfile returns the public profile of a user.
+// @Summary Get public user profile
+// @Tags users
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /users/{id}/profile [get]
 func (h *AuthHandler) GetPublicProfile(c *gin.Context) {
 	userID := c.Param("id")
 
-	profile, err := h.authService.GetUserProfile(c.Request.Context(), userID)
+	profile, err := h.authService.GetPublicUserProfile(c.Request.Context(), userID)
 	if err != nil {
 		utils.ErrorResponse(c, 404, "Profile not found")
 		return
 	}
 
-	// For public profiles, we redact sensitive information like email and bid history
-	publicProfile := *profile
-	publicProfile.Email = ""
-	publicProfile.BidHistory = nil
-	// Password is automatically hidden by JSON tags
-
-	utils.SuccessResponse(c, 200, "Public profile retrieved successfully", publicProfile)
+	utils.SuccessResponse(c, 200, "Public profile retrieved successfully", profile)
 }
 
 // GetLeaderboard returns the top 20 users by total points.
+// @Summary Get leaderboard
+// @Tags users
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /leaderboard [get]
 func (h *AuthHandler) GetLeaderboard(c *gin.Context) {
 	leaderboard, err := h.authService.GetLeaderboard(c.Request.Context())
 	if err != nil {

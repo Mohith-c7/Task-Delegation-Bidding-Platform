@@ -1,0 +1,8 @@
+ALTER TABLE users
+  DROP COLUMN IF EXISTS rating_count,
+  DROP COLUMN IF EXISTS rating_sum,
+  DROP COLUMN IF EXISTS total_points;
+
+ALTER TABLE tasks
+  DROP COLUMN IF EXISTS points,
+  DROP COLUMN IF EXISTS rating;

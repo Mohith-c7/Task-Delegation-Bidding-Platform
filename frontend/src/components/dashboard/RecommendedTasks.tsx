@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Sparkles, ChevronRight, Loader2 } from 'lucide-react'
+import { Sparkles, ChevronRight } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { Card } from '../../design-system'
 import { taskService } from '../../services/taskService'

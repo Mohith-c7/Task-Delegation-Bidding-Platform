@@ -217,12 +217,16 @@ func (r *TaskRepository) GetTaskDetail(ctx context.Context, id string) (*models.
 
 	// Comments
 	cmtRows, err := r.db.Query(ctx,
-		`SELECT id, task_id, org_id, author_id, body, created_at, updated_at FROM comments WHERE task_id = $1 ORDER BY created_at ASC`, id)
+		`SELECT c.id, c.task_id, c.org_id, c.author_id, c.body, c.created_at, c.updated_at, COALESCE(u.name, '')
+		 FROM comments c
+		 LEFT JOIN users u ON u.id = c.author_id
+		 WHERE c.task_id = $1
+		 ORDER BY c.created_at ASC`, id)
 	if err == nil {
 		defer cmtRows.Close()
 		for cmtRows.Next() {
 			var c models.Comment
-			_ = cmtRows.Scan(&c.ID, &c.TaskID, &c.OrgID, &c.AuthorID, &c.Body, &c.CreatedAt, &c.UpdatedAt)
+			_ = cmtRows.Scan(&c.ID, &c.TaskID, &c.OrgID, &c.AuthorID, &c.Body, &c.CreatedAt, &c.UpdatedAt, &c.AuthorName)
 			detail.Comments = append(detail.Comments, c)
 		}
 	}
@@ -274,18 +278,18 @@ func (r *TaskRepository) UpsertChecklist(ctx context.Context, taskID string, ite
 
 // TaskSearchParams holds all search/filter/sort/pagination parameters.
 type TaskSearchParams struct {
-	Query       string
-	OrgID       string
-	Status      string
-	Priority    string
-	AssignedTo  string
-	Creator     string
-	Skills      []string
+	Query        string
+	OrgID        string
+	Status       string
+	Priority     string
+	AssignedTo   string
+	Creator      string
+	Skills       []string
 	DeadlineFrom string
 	DeadlineTo   string
-	Sort        string // created_at_asc, created_at_desc, deadline_asc, deadline_desc, priority_desc
-	Page        int
-	PageSize    int
+	Sort         string // created_at_asc, created_at_desc, deadline_asc, deadline_desc, priority_desc
+	Page         int
+	PageSize     int
 }
 
 type TaskSearchResult struct {
@@ -356,16 +360,16 @@ func (r *TaskRepository) SearchTasks(ctx context.Context, p TaskSearchParams) (*
 		argIdx++
 	}
 
-	orderBy := "created_at DESC"
+	orderBy := "t.created_at DESC"
 	switch p.Sort {
 	case "created_at_asc":
-		orderBy = "created_at ASC"
+		orderBy = "t.created_at ASC"
 	case "deadline_asc":
-		orderBy = "deadline ASC"
+		orderBy = "t.deadline ASC"
 	case "deadline_desc":
-		orderBy = "deadline DESC"
+		orderBy = "t.deadline DESC"
 	case "priority_desc":
-		orderBy = "CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END ASC"
+		orderBy = "CASE t.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END ASC"
 	}
 
 	whereClause := strings.Join(where, " AND ")
@@ -382,7 +386,7 @@ func (r *TaskRepository) SearchTasks(ctx context.Context, p TaskSearchParams) (*
 		`SELECT t.id, t.title, t.description, t.skills, t.questions, t.deadline, t.priority, t.status, COALESCE(t.org_id::text, '') as org_id, t.owner_id, u.name as owner_name, t.assigned_to, t.rating, t.points, t.created_at, t.updated_at 
 		 FROM tasks t 
 		 LEFT JOIN users u ON u.id = t.owner_id 
-		 WHERE %s ORDER BY t.%s LIMIT $%d OFFSET $%d`,
+		 WHERE %s ORDER BY %s LIMIT $%d OFFSET $%d`,
 		whereClause, orderBy, argIdx, argIdx+1,
 	)
 	args = append(args, p.PageSize, offset)

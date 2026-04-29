@@ -126,6 +126,15 @@ func (r *BidRepository) UpdateStatus(ctx context.Context, id string, status mode
 	return nil
 }
 
+func (r *BidRepository) RejectOtherPendingBids(ctx context.Context, taskID, approvedBidID, approvedBy string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE bids
+		SET status = $1, approved_by = $2, updated_at = CURRENT_TIMESTAMP
+		WHERE task_id = $3 AND id <> $4 AND status = $5
+	`, models.BidRejected, approvedBy, taskID, approvedBidID, models.BidPending)
+	return err
+}
+
 func (r *BidRepository) BidExists(ctx context.Context, taskID, bidderID string) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM bids WHERE task_id = $1 AND bidder_id = $2)`

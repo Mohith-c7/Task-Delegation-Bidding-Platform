@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
@@ -91,11 +92,30 @@ func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
 		WHERE id = $10
 		RETURNING updated_at
 	`
-	return r.db.QueryRow(ctx, query, 
+	return r.db.QueryRow(ctx, query,
 		user.Name, user.Email, user.PasswordHash,
 		user.Bio, user.AvatarURL, user.Skills, user.ResumeURL,
 		user.EmailVerified, user.VerifiedAt, user.ID,
 	).Scan(&user.UpdatedAt)
+}
+
+func (r *UserRepository) UpdateNotificationPrefs(ctx context.Context, userID string, prefs *models.NotificationPrefsRequest) error {
+	payload, err := json.Marshal(prefs)
+	if err != nil {
+		return err
+	}
+
+	result, err := r.db.Exec(ctx,
+		`UPDATE users SET notif_prefs = $1, updated_at = NOW() WHERE id = $2`,
+		payload, userID,
+	)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return errors.New("user not found")
+	}
+	return nil
 }
 
 func (r *UserRepository) GetProfile(ctx context.Context, userID string) (*models.UserProfile, error) {
@@ -188,7 +208,8 @@ func (r *UserRepository) GetLeaderboard(ctx context.Context) ([]*models.Leaderbo
 			u.rating_sum, 
 			u.rating_count, 
 			u.skills,
-			(SELECT COUNT(*) FROM tasks WHERE assigned_to = u.id AND status = 'completed') as tasks_done
+			(SELECT COUNT(*) FROM tasks WHERE assigned_to = u.id AND status = 'completed') as tasks_done,
+			(SELECT COUNT(*) FROM bids WHERE bidder_id = u.id AND status = 'approved') as bids_won
 		FROM users u
 		ORDER BY u.total_points DESC
 		LIMIT 20
@@ -204,7 +225,7 @@ func (r *UserRepository) GetLeaderboard(ctx context.Context) ([]*models.Leaderbo
 	for rows.Next() {
 		var u models.LeaderboardUser
 		var rSum, rCount int
-		if err := rows.Scan(&u.ID, &u.Name, &u.AvatarURL, &u.TotalPoints, &rSum, &rCount, &u.Skills, &u.TasksDone); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.AvatarURL, &u.TotalPoints, &rSum, &rCount, &u.Skills, &u.TasksDone, &u.BidsWon); err != nil {
 			return nil, err
 		}
 		if rCount > 0 {
@@ -217,4 +238,38 @@ func (r *UserRepository) GetLeaderboard(ctx context.Context) ([]*models.Leaderbo
 	}
 
 	return leaderboard, nil
+}
+
+func (r *UserRepository) GetCompletedTaskHistoryForUser(ctx context.Context, userID string) ([]models.TaskHistoryItem, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, title, status, priority, deadline, created_at, NULL::text, rating, points
+		FROM tasks
+		WHERE assigned_to = $1 AND status = 'completed'
+		ORDER BY updated_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	history := make([]models.TaskHistoryItem, 0)
+	for rows.Next() {
+		var item models.TaskHistoryItem
+		if err := rows.Scan(
+			&item.ID,
+			&item.Title,
+			&item.Status,
+			&item.Priority,
+			&item.Deadline,
+			&item.CreatedAt,
+			&item.AssignedTo,
+			&item.Rating,
+			&item.Points,
+		); err != nil {
+			return nil, err
+		}
+		history = append(history, item)
+	}
+
+	return history, nil
 }

@@ -5,18 +5,36 @@ import (
 	"errors"
 
 	"github.com/yourusername/task-delegation-platform/internal/models"
-	"github.com/yourusername/task-delegation-platform/internal/repository"
 )
 
 type BidService struct {
-	bidRepo         *repository.BidRepository
-	taskRepo        *repository.TaskRepository
-	userRepo        *repository.UserRepository
-	notifService    *NotificationService
-	emailService    *EmailService
+	bidRepo      bidRepository
+	taskRepo     bidTaskRepository
+	userRepo     bidUserRepository
+	notifService *NotificationService
+	emailService *EmailService
 }
 
-func NewBidService(bidRepo *repository.BidRepository, taskRepo *repository.TaskRepository, userRepo *repository.UserRepository) *BidService {
+type bidRepository interface {
+	Create(ctx context.Context, bid *models.Bid) error
+	GetByTaskID(ctx context.Context, taskID string) ([]*models.BidWithDetails, error)
+	GetByBidderID(ctx context.Context, bidderID string) ([]*models.Bid, error)
+	GetByID(ctx context.Context, id string) (*models.Bid, error)
+	UpdateStatus(ctx context.Context, id string, status models.BidStatus, approvedBy *string) error
+	RejectOtherPendingBids(ctx context.Context, taskID, approvedBidID, approvedBy string) error
+	BidExists(ctx context.Context, taskID, bidderID string) (bool, error)
+}
+
+type bidTaskRepository interface {
+	GetByID(ctx context.Context, id string) (*models.Task, error)
+	Update(ctx context.Context, id string, task *models.Task) error
+}
+
+type bidUserRepository interface {
+	GetByID(ctx context.Context, id string) (*models.User, error)
+}
+
+func NewBidService(bidRepo bidRepository, taskRepo bidTaskRepository, userRepo bidUserRepository) *BidService {
 	return &BidService{
 		bidRepo:  bidRepo,
 		taskRepo: taskRepo,
@@ -132,6 +150,11 @@ func (s *BidService) ApproveBid(ctx context.Context, bidID string, approverID st
 
 	// Update bid status
 	if err := s.bidRepo.UpdateStatus(ctx, bidID, models.BidApproved, &approverID); err != nil {
+		return err
+	}
+
+	// Reject any remaining pending bids for this task.
+	if err := s.bidRepo.RejectOtherPendingBids(ctx, bid.TaskID, bidID, approverID); err != nil {
 		return err
 	}
 

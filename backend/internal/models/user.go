@@ -35,15 +35,15 @@ type UserProfile struct {
 }
 
 type TaskHistoryItem struct {
-	ID         string       `json:"id"`
-	Title      string       `json:"title"`
-	Status     string       `json:"status"`
-	Priority   string       `json:"priority"`
-	Deadline   time.Time    `json:"deadline"`
-	CreatedAt  time.Time    `json:"created_at"`
-	AssignedTo *string      `json:"assigned_to"`
-	Rating     *int         `json:"rating"`
-	Points     *int         `json:"points"`
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	Status     string    `json:"status"`
+	Priority   string    `json:"priority"`
+	Deadline   time.Time `json:"deadline"`
+	CreatedAt  time.Time `json:"created_at"`
+	AssignedTo *string   `json:"assigned_to"`
+	Rating     *int      `json:"rating"`
+	Points     *int      `json:"points"`
 }
 
 type BidHistoryItem struct {
@@ -64,6 +64,7 @@ type LeaderboardUser struct {
 	TotalPoints int      `json:"total_points"`
 	AvgRating   float64  `json:"avg_rating"`
 	TasksDone   int      `json:"tasks_done"`
+	BidsWon     int      `json:"bids_won"`
 	Skills      []string `json:"skills"`
 }
 
@@ -86,10 +87,10 @@ type AuthResponse struct {
 
 type UpdateProfileRequest struct {
 	Name      string   `json:"name" binding:"omitempty,min=2,max=255"`
-	AvatarURL string   `json:"avatar_url" binding:"omitempty"`
+	AvatarURL string   `json:"avatar_url" binding:"omitempty,url"`
 	Bio       string   `json:"bio" binding:"omitempty,max=500"`
 	Skills    []string `json:"skills"`
-	ResumeURL string   `json:"resume_url" binding:"omitempty"`
+	ResumeURL string   `json:"resume_url" binding:"omitempty,url"`
 }
 
 type ChangePasswordRequest struct {
