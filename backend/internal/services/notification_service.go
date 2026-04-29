@@ -13,8 +13,8 @@ import (
 )
 
 type NotificationService struct {
-	notifRepo   *repository.NotificationRepository
-	redisClient *redis.Client
+	notifRepo    *repository.NotificationRepository
+	redisClient  *redis.Client
 	emailService *EmailService
 }
 
@@ -31,6 +31,20 @@ func (s *NotificationService) SetEmailService(es *EmailService) {
 
 // Publish creates a notification in DB and publishes to Redis pub/sub.
 func (s *NotificationService) Publish(ctx context.Context, n *models.Notification) error {
+	allowed, err := s.notificationAllowed(ctx, n)
+	if err != nil {
+		log.Printf("notification preference check failed: %v", err)
+	}
+	if !allowed {
+		return nil
+	}
+	duplicate, err := s.notifRepo.HasRecentDuplicate(ctx, n, 2*time.Minute)
+	if err != nil {
+		log.Printf("notification duplicate check failed: %v", err)
+	}
+	if duplicate {
+		return nil
+	}
 	if err := s.notifRepo.CreateNotification(ctx, n); err != nil {
 		return err
 	}
@@ -42,6 +56,29 @@ func (s *NotificationService) Publish(ctx context.Context, n *models.Notificatio
 		}
 	}
 	return nil
+}
+
+func (s *NotificationService) notificationAllowed(ctx context.Context, n *models.Notification) (bool, error) {
+	prefs, err := s.notifRepo.GetNotificationPrefs(ctx, n.UserID)
+	if err != nil {
+		return true, err
+	}
+	switch n.Type {
+	case models.NotifBidPlaced:
+		return prefs.BidPlaced, nil
+	case models.NotifBidApproved:
+		return prefs.BidApproved, nil
+	case models.NotifBidRejected:
+		return prefs.BidRejected, nil
+	case models.NotifTaskAssigned, models.NotifTaskUpdated:
+		return prefs.TaskAssigned, nil
+	case models.NotifCommentAdded:
+		return prefs.TaskComment, nil
+	case models.NotifDeadlineSoon:
+		return prefs.Deadline, nil
+	default:
+		return true, nil
+	}
 }
 
 // GetHistory returns paginated notification history for a user.

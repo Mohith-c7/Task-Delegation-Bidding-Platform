@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,6 +26,41 @@ func (r *NotificationRepository) CreateNotification(ctx context.Context, n *mode
 	return r.db.QueryRow(ctx, query,
 		n.UserID, n.OrgID, n.Type, n.Title, n.Body, n.ResourceType, n.ResourceID,
 	).Scan(&n.ID, &n.IsRead, &n.CreatedAt)
+}
+
+func (r *NotificationRepository) GetNotificationPrefs(ctx context.Context, userID string) (*models.NotificationPrefsRequest, error) {
+	var raw []byte
+	err := r.db.QueryRow(ctx, `SELECT COALESCE(notif_prefs, '{}'::jsonb) FROM users WHERE id = $1`, userID).Scan(&raw)
+	if err != nil {
+		return nil, err
+	}
+	prefs := &models.NotificationPrefsRequest{
+		BidPlaced:    true,
+		BidApproved:  true,
+		BidRejected:  true,
+		TaskAssigned: true,
+		TaskComment:  true,
+		Deadline:     true,
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, prefs)
+	}
+	return prefs, nil
+}
+
+func (r *NotificationRepository) HasRecentDuplicate(ctx context.Context, n *models.Notification, window time.Duration) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM notifications
+			WHERE user_id = $1
+			  AND type = $2
+			  AND COALESCE(resource_type, '') = COALESCE($3, '')
+			  AND COALESCE(resource_id::text, '') = COALESCE($4, '')
+			  AND created_at >= NOW() - ($5::int * INTERVAL '1 second')
+		)
+	`, n.UserID, n.Type, n.ResourceType, n.ResourceID, int(window.Seconds())).Scan(&exists)
+	return exists, err
 }
 
 func (r *NotificationRepository) GetNotificationHistory(ctx context.Context, userID string, limit, offset int) ([]models.Notification, error) {
@@ -115,4 +151,3 @@ func (r *NotificationRepository) GetTasksDueWithin24Hours(ctx context.Context) (
 	}
 	return tasks, nil
 }
-
