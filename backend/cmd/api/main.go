@@ -180,6 +180,9 @@ func main() {
 			protected.PUT("/users/me", authHandler.UpdateMe)
 			protected.PUT("/users/me/password", authHandler.ChangePassword)
 			protected.PUT("/users/me/notifications", authHandler.UpdateNotificationPrefs)
+			protected.GET("/users/me/availability", authHandler.ListAvailability)
+			protected.POST("/users/me/availability", authHandler.CreateAvailability)
+			protected.DELETE("/users/me/availability/:id", authHandler.DeleteAvailability)
 			protected.POST("/auth/logout", authHandler.Logout)
 
 			// Task routes

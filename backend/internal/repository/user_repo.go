@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -357,4 +358,80 @@ func (r *UserRepository) GetCompletedTaskHistoryForUser(ctx context.Context, use
 	}
 
 	return history, nil
+}
+
+func (r *UserRepository) ListAvailability(ctx context.Context, userID string) ([]models.AvailabilityEntry, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, user_id, start_at, end_at, status, note, created_at, updated_at
+		FROM user_availability
+		WHERE user_id = $1 AND end_at >= NOW()
+		ORDER BY start_at ASC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	entries := []models.AvailabilityEntry{}
+	for rows.Next() {
+		var entry models.AvailabilityEntry
+		if err := rows.Scan(&entry.ID, &entry.UserID, &entry.StartAt, &entry.EndAt, &entry.Status, &entry.Note, &entry.CreatedAt, &entry.UpdatedAt); err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}
+
+func (r *UserRepository) CreateAvailability(ctx context.Context, userID string, req *models.CreateAvailabilityRequest) (*models.AvailabilityEntry, error) {
+	var overlaps bool
+	if err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM user_availability
+			WHERE user_id = $1
+			  AND tstzrange(start_at, end_at, '[)') && tstzrange($2, $3, '[)')
+		)
+	`, userID, req.StartAt, req.EndAt).Scan(&overlaps); err != nil {
+		return nil, err
+	}
+	if overlaps {
+		return nil, errors.New("availability window overlaps an existing entry")
+	}
+
+	entry := &models.AvailabilityEntry{}
+	err := r.db.QueryRow(ctx, `
+		INSERT INTO user_availability (user_id, start_at, end_at, status, note)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, user_id, start_at, end_at, status, note, created_at, updated_at
+	`, userID, req.StartAt, req.EndAt, req.Status, req.Note).Scan(
+		&entry.ID, &entry.UserID, &entry.StartAt, &entry.EndAt, &entry.Status, &entry.Note, &entry.CreatedAt, &entry.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return entry, nil
+}
+
+func (r *UserRepository) DeleteAvailability(ctx context.Context, userID, entryID string) error {
+	result, err := r.db.Exec(ctx, `DELETE FROM user_availability WHERE id = $1 AND user_id = $2`, entryID, userID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return errors.New("availability entry not found")
+	}
+	return nil
+}
+
+func (r *UserRepository) HasUnavailableWindow(ctx context.Context, userID string, start, end time.Time) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM user_availability
+			WHERE user_id = $1
+			  AND status IN ('busy', 'unavailable', 'leave')
+			  AND tstzrange(start_at, end_at, '[)') && tstzrange($2, $3, '[)')
+		)
+	`, userID, start, end).Scan(&exists)
+	return exists, err
 }

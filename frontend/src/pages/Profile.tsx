@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { User, Lock, Bell, Plus, X, Loader2, CheckCircle, Edit3, ClipboardList, TrendingUp, MessageSquare, Star, FileText } from 'lucide-react'
+import { User, Lock, Bell, Plus, X, Loader2, CheckCircle, Edit3, ClipboardList, TrendingUp, MessageSquare, Star, FileText, Calendar } from 'lucide-react'
 import Layout from '../components/common/Layout'
 import { Button, Card, Input } from '../design-system'
 import { useAuthStore } from '../store/authStore'
 import { useToast } from '../design-system'
 import api from '../services/api'
-import { authService } from '../services/authService'
+import { authService, type AvailabilityEntry } from '../services/authService'
 import { cn } from '../design-system/utils'
 
 export default function Profile() {
@@ -20,8 +20,13 @@ export default function Profile() {
   })
 
   // We use the full profile type
-  type TabType = 'overview' | 'settings' | 'password' | 'notifications' | 'task_history' | 'bid_history' | 'reviews'
+  type TabType = 'overview' | 'settings' | 'password' | 'notifications' | 'task_history' | 'bid_history' | 'reviews' | 'availability'
   const [activeSection, setActiveSection] = useState<TabType>('overview')
+  const availability = useQuery({
+    queryKey: ['availability'],
+    queryFn: () => authService.getAvailability(),
+    enabled: !!user?.id,
+  })
 
   // Profile form
   const [name, setName] = useState(user?.name || '')
@@ -53,6 +58,12 @@ export default function Profile() {
     bid_placed: true, bid_approved: true, bid_rejected: true,
     task_assigned: true, task_comment: true, deadline: true,
   })
+  const [availabilityForm, setAvailabilityForm] = useState({
+    start_at: '',
+    end_at: '',
+    status: 'unavailable' as AvailabilityEntry['status'],
+    note: '',
+  })
 
   const updateProfile = useMutation({
     mutationFn: () => api.put('/users/me', { name, avatar_url: avatarURL, bio, resume_url: resumeURL, skills }),
@@ -78,6 +89,29 @@ export default function Profile() {
     onSuccess: () => toastSuccess('Preferences saved'),
   })
 
+  const createAvailability = useMutation({
+    mutationFn: () => authService.createAvailability({
+      start_at: new Date(availabilityForm.start_at).toISOString(),
+      end_at: new Date(availabilityForm.end_at).toISOString(),
+      status: availabilityForm.status,
+      note: availabilityForm.note,
+    }),
+    onSuccess: () => {
+      setAvailabilityForm({ start_at: '', end_at: '', status: 'unavailable', note: '' })
+      availability.refetch()
+      toastSuccess('Availability added')
+    },
+    onError: (err: any) => toastError(err?.response?.data?.message || 'Failed to add availability'),
+  })
+
+  const deleteAvailability = useMutation({
+    mutationFn: (id: string) => authService.deleteAvailability(id),
+    onSuccess: () => {
+      availability.refetch()
+      toastSuccess('Availability removed')
+    },
+  })
+
   const addSkill = () => {
     const s = skillInput.trim()
     if (s && !skills.some(skill => skill.toLowerCase() === s.toLowerCase())) {
@@ -91,6 +125,7 @@ export default function Profile() {
     { id: 'task_history' as const, label: 'Task History', icon: <ClipboardList className="w-4 h-4" /> },
     { id: 'bid_history' as const, label: 'Bid History', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'reviews' as const, label: 'Reviews', icon: <MessageSquare className="w-4 h-4" /> },
+    { id: 'availability' as const, label: 'Availability', icon: <Calendar className="w-4 h-4" /> },
     { id: 'settings' as const, label: 'Settings', icon: <Edit3 className="w-4 h-4" /> },
     { id: 'password' as const, label: 'Password', icon: <Lock className="w-4 h-4" /> },
     { id: 'notifications' as const, label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
@@ -333,6 +368,62 @@ export default function Profile() {
                 ))}
               </div>
             )}
+          </Card>
+        )}
+
+        {/* Availability Tab */}
+        {activeSection === 'availability' && (
+          <Card className="p-6 space-y-5">
+            <div>
+              <h2 className="font-bold text-lg text-text-primary">Availability Calendar</h2>
+              <p className="text-sm text-text-tertiary mt-1">Publish busy, leave, or unavailable windows so owners can plan assignments responsibly.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Start" type="datetime-local" value={availabilityForm.start_at} onChange={e => setAvailabilityForm(f => ({ ...f, start_at: e.target.value }))} />
+              <Input label="End" type="datetime-local" value={availabilityForm.end_at} onChange={e => setAvailabilityForm(f => ({ ...f, end_at: e.target.value }))} />
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1.5">Status</label>
+                <select
+                  value={availabilityForm.status}
+                  onChange={e => setAvailabilityForm(f => ({ ...f, status: e.target.value as any }))}
+                  className="w-full h-10 px-3 text-sm bg-white border border-border-strong rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="available">Available</option>
+                  <option value="busy">Busy</option>
+                  <option value="unavailable">Unavailable</option>
+                  <option value="leave">Leave</option>
+                </select>
+              </div>
+              <Input label="Note" value={availabilityForm.note} onChange={e => setAvailabilityForm(f => ({ ...f, note: e.target.value }))} placeholder="Optional context" />
+            </div>
+
+            <Button
+              onClick={() => createAvailability.mutate()}
+              disabled={!availabilityForm.start_at || !availabilityForm.end_at || createAvailability.isPending}
+            >
+              {createAvailability.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Add Availability
+            </Button>
+
+            <div className="space-y-2">
+              {availability.isLoading ? (
+                <p className="text-sm text-text-tertiary">Loading availability...</p>
+              ) : availability.data?.length ? availability.data.map(entry => (
+                <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 p-3">
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary capitalize">{entry.status}</p>
+                    <p className="text-xs text-text-tertiary">
+                      {new Date(entry.start_at).toLocaleString()} - {new Date(entry.end_at).toLocaleString()}
+                    </p>
+                    {entry.note && <p className="text-xs text-text-secondary mt-1">{entry.note}</p>}
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => deleteAvailability.mutate(entry.id)}>Remove</Button>
+                </div>
+              )) : (
+                <p className="text-sm text-text-tertiary text-center py-8">No upcoming availability entries.</p>
+              )}
+            </div>
           </Card>
         )}
 

@@ -364,6 +364,24 @@ func (s *AuthService) GetUserReviews(ctx context.Context, userID string) ([]mode
 	return s.userRepo.GetUserReviews(ctx, userID)
 }
 
+func (s *AuthService) ListAvailability(ctx context.Context, userID string) ([]models.AvailabilityEntry, error) {
+	return s.userRepo.ListAvailability(ctx, userID)
+}
+
+func (s *AuthService) CreateAvailability(ctx context.Context, userID string, req *models.CreateAvailabilityRequest) (*models.AvailabilityEntry, error) {
+	if !req.EndAt.After(req.StartAt) {
+		return nil, errors.New("availability end must be after start")
+	}
+	if req.EndAt.Before(time.Now()) {
+		return nil, errors.New("availability entry cannot end in the past")
+	}
+	return s.userRepo.CreateAvailability(ctx, userID, req)
+}
+
+func (s *AuthService) DeleteAvailability(ctx context.Context, userID, entryID string) error {
+	return s.userRepo.DeleteAvailability(ctx, userID, entryID)
+}
+
 // ChangePassword changes a user's password, rejecting if new == current.
 func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
 	user, err := s.userRepo.GetByID(ctx, userID)

@@ -36,6 +36,7 @@ type bidTaskRepository interface {
 
 type bidUserRepository interface {
 	GetByID(ctx context.Context, id string) (*models.User, error)
+	HasUnavailableWindow(ctx context.Context, userID string, start, end time.Time) (bool, error)
 }
 
 func NewBidService(bidRepo bidRepository, taskRepo bidTaskRepository, userRepo bidUserRepository) *BidService {
@@ -88,6 +89,13 @@ func (s *BidService) CreateBid(ctx context.Context, taskID string, req *models.C
 	// Validate estimated completion does not exceed the task deadline
 	if req.EstimatedCompletion.After(task.Deadline) {
 		return nil, errors.New("estimated completion date cannot be after the task deadline")
+	}
+	unavailable, err := s.userRepo.HasUnavailableWindow(ctx, bidderID, time.Now(), req.EstimatedCompletion)
+	if err != nil {
+		return nil, err
+	}
+	if unavailable {
+		return nil, errors.New("you have an availability conflict before the estimated completion date")
 	}
 
 	// Create bid

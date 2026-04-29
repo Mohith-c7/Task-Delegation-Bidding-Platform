@@ -394,3 +394,37 @@ func (h *AuthHandler) GetUserReviews(c *gin.Context) {
 
 	utils.SuccessResponse(c, 200, "Reviews retrieved successfully", reviews)
 }
+
+func (h *AuthHandler) ListAvailability(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	entries, err := h.authService.ListAvailability(c.Request.Context(), userID.(string))
+	if err != nil {
+		utils.ErrorResponse(c, 500, "Failed to retrieve availability")
+		return
+	}
+	utils.SuccessResponse(c, 200, "Availability retrieved", entries)
+}
+
+func (h *AuthHandler) CreateAvailability(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	var req models.CreateAvailabilityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	entry, err := h.authService.CreateAvailability(c.Request.Context(), userID.(string), &req)
+	if err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 201, "Availability created", entry)
+}
+
+func (h *AuthHandler) DeleteAvailability(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	if err := h.authService.DeleteAvailability(c.Request.Context(), userID.(string), c.Param("id")); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Availability deleted", nil)
+}

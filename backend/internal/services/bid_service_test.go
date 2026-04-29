@@ -72,6 +72,9 @@ type mockBidUserRepo struct{}
 func (m *mockBidUserRepo) GetByID(_ context.Context, id string) (*models.User, error) {
 	return &models.User{ID: id, Name: "Test", Email: "test@example.com"}, nil
 }
+func (m *mockBidUserRepo) HasUnavailableWindow(_ context.Context, _ string, _, _ time.Time) (bool, error) {
+	return false, nil
+}
 
 func TestCreateBid_CannotBidOwnTask(t *testing.T) {
 	svc := NewBidService(

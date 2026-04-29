@@ -131,3 +131,21 @@ type NotificationPrefsRequest struct {
 	TaskComment  bool `json:"task_comment"`
 	Deadline     bool `json:"deadline"`
 }
+
+type AvailabilityEntry struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	StartAt   time.Time `json:"start_at"`
+	EndAt     time.Time `json:"end_at"`
+	Status    string    `json:"status"`
+	Note      string    `json:"note"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type CreateAvailabilityRequest struct {
+	StartAt time.Time `json:"start_at" binding:"required"`
+	EndAt   time.Time `json:"end_at" binding:"required"`
+	Status  string    `json:"status" binding:"required,oneof=available busy unavailable leave"`
+	Note    string    `json:"note" binding:"omitempty,max=500"`
+}

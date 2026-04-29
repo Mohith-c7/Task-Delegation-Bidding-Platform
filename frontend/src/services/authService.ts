@@ -67,6 +67,21 @@ export interface UserProfile extends User {
   reviews: UserReview[]
 }
 
+export interface AvailabilityEntry {
+  id: string
+  start_at: string
+  end_at: string
+  status: 'available' | 'busy' | 'unavailable' | 'leave'
+  note: string
+}
+
+export interface CreateAvailabilityRequest {
+  start_at: string
+  end_at: string
+  status: AvailabilityEntry['status']
+  note?: string
+}
+
 export interface AuthResponse {
   user: User
   access_token: string
@@ -113,5 +128,19 @@ export const authService = {
   async getUserReviews(id: string): Promise<UserReview[]> {
     const response = await api.get(`/users/${id}/reviews`)
     return response.data.data
-  }
+  },
+
+  async getAvailability(): Promise<AvailabilityEntry[]> {
+    const response = await api.get('/users/me/availability')
+    return response.data.data
+  },
+
+  async createAvailability(data: CreateAvailabilityRequest): Promise<AvailabilityEntry> {
+    const response = await api.post('/users/me/availability', data)
+    return response.data.data
+  },
+
+  async deleteAvailability(id: string): Promise<void> {
+    await api.delete(`/users/me/availability/${id}`)
+  },
 }
