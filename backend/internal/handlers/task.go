@@ -296,3 +296,31 @@ func (h *TaskHandler) RateTask(c *gin.Context) {
 	}
 	utils.SuccessResponse(c, 200, "Task rated successfully", nil)
 }
+
+// CreateReview handles POST /tasks/:id/reviews
+// @Summary Review completed task assignee
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID"
+// @Param request body models.CreateUserReviewRequest true "Review request"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id}/reviews [post]
+func (h *TaskHandler) CreateReview(c *gin.Context) {
+	id := c.Param("id")
+	userID, _ := c.Get("user_id")
+	var req models.CreateUserReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+
+	review, err := h.taskService.CreateReview(c.Request.Context(), id, userID.(string), &req)
+	if err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 201, "Review submitted successfully", review)
+}

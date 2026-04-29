@@ -373,3 +373,24 @@ func (h *AuthHandler) GetLeaderboard(c *gin.Context) {
 
 	utils.SuccessResponse(c, 200, "Leaderboard retrieved successfully", leaderboard)
 }
+
+// GetUserReviews returns public reviews received by a user.
+// @Summary Get user reviews
+// @Tags users
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /users/{id}/reviews [get]
+func (h *AuthHandler) GetUserReviews(c *gin.Context) {
+	userID := c.Param("id")
+
+	reviews, err := h.authService.GetUserReviews(c.Request.Context(), userID)
+	if err != nil {
+		utils.ErrorResponse(c, 500, "Failed to retrieve reviews")
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Reviews retrieved successfully", reviews)
+}

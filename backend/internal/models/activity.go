@@ -26,4 +26,5 @@ const (
 	ActivityBidRejected    = "bid_rejected"
 	ActivityCommentAdded   = "comment_added"
 	ActivityChecklistUpdated = "checklist_updated"
+	ActivityReviewSubmitted = "review_submitted"
 )

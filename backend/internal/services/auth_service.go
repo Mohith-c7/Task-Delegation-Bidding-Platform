@@ -360,6 +360,10 @@ func (s *AuthService) GetPublicUserProfile(ctx context.Context, userID string) (
 	return profile, nil
 }
 
+func (s *AuthService) GetUserReviews(ctx context.Context, userID string) ([]models.UserReview, error) {
+	return s.userRepo.GetUserReviews(ctx, userID)
+}
+
 // ChangePassword changes a user's password, rejecting if new == current.
 func (s *AuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
 	user, err := s.userRepo.GetByID(ctx, userID)

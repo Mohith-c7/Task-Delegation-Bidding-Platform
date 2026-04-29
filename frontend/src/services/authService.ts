@@ -4,6 +4,7 @@ export interface User {
   id: string
   name: string
   email: string
+  role?: string
   avatar_url?: string
   bio?: string
   skills?: string[]
@@ -34,8 +35,26 @@ export interface BidHistoryItem {
   created_at: string
 }
 
+export interface UserReview {
+  id: string
+  task_id: string
+  task_title: string
+  reviewer_id: string
+  reviewer_name: string
+  reviewee_id: string
+  rating: number
+  points: number
+  comment: string
+  created_at: string
+}
+
 export interface UserProfile extends User {
   avg_rating: number
+  role: string
+  tasks_applied: number
+  tasks_accepted: number
+  overall_rating: number
+  review_count: number
   rating_count: number
   total_points: number
   total_tasks_posted: number
@@ -45,6 +64,7 @@ export interface UserProfile extends User {
   success_rate: number
   task_history: TaskHistoryItem[]
   bid_history: BidHistoryItem[]
+  reviews: UserReview[]
 }
 
 export interface AuthResponse {
@@ -87,6 +107,11 @@ export const authService = {
 
   async getPublicProfile(id: string): Promise<UserProfile> {
     const response = await api.get(`/users/${id}/profile`)
+    return response.data.data
+  },
+
+  async getUserReviews(id: string): Promise<UserReview[]> {
+    const response = await api.get(`/users/${id}/reviews`)
     return response.data.data
   }
 }

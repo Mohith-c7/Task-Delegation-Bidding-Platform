@@ -25,6 +25,11 @@ type User struct {
 type UserProfile struct {
 	User
 	AvgRating           float64           `json:"avg_rating"`
+	Role                string            `json:"role"`
+	TasksApplied        int               `json:"tasks_applied"`
+	TasksAccepted       int               `json:"tasks_accepted"`
+	OverallRating       float64           `json:"overall_rating"`
+	ReviewCount         int               `json:"review_count"`
 	TotalTasksPosted    int               `json:"total_tasks_posted"`
 	TotalTasksCompleted int               `json:"total_tasks_completed"`
 	TotalBidsPlaced     int               `json:"total_bids_placed"`
@@ -32,6 +37,7 @@ type UserProfile struct {
 	SuccessRate         float64           `json:"success_rate"`
 	TaskHistory         []TaskHistoryItem `json:"task_history"`
 	BidHistory          []BidHistoryItem  `json:"bid_history"`
+	Reviews             []UserReview      `json:"reviews"`
 }
 
 type TaskHistoryItem struct {
@@ -66,6 +72,25 @@ type LeaderboardUser struct {
 	TasksDone   int      `json:"tasks_done"`
 	BidsWon     int      `json:"bids_won"`
 	Skills      []string `json:"skills"`
+}
+
+type UserReview struct {
+	ID           string    `json:"id"`
+	TaskID       string    `json:"task_id"`
+	TaskTitle    string    `json:"task_title"`
+	ReviewerID   string    `json:"reviewer_id"`
+	ReviewerName string    `json:"reviewer_name"`
+	RevieweeID   string    `json:"reviewee_id"`
+	Rating       int       `json:"rating"`
+	Points       int       `json:"points"`
+	Comment      string    `json:"comment"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type CreateUserReviewRequest struct {
+	Rating  int    `json:"rating" binding:"required,min=1,max=5"`
+	Points  int    `json:"points" binding:"omitempty,min=0,max=10000"`
+	Comment string `json:"comment" binding:"omitempty,max=1000"`
 }
 
 type RegisterRequest struct {

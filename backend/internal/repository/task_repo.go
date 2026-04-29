@@ -465,3 +465,99 @@ func (r *TaskRepository) RateTask(ctx context.Context, taskID string, rating, po
 
 	return tx.Commit(ctx)
 }
+
+func (r *TaskRepository) CreateReview(ctx context.Context, taskID, reviewerID string, req *models.CreateUserReviewRequest) (*models.UserReview, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var ownerID string
+	var assigneeID *string
+	var status string
+	var oldRating *int
+	err = tx.QueryRow(ctx, `
+		SELECT owner_id::text, assigned_to::text, status, rating
+		FROM tasks
+		WHERE id = $1
+	`, taskID).Scan(&ownerID, &assigneeID, &status, &oldRating)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("task not found")
+		}
+		return nil, err
+	}
+
+	if ownerID != reviewerID {
+		return nil, errors.New("unauthorized: only the task owner can review completed work")
+	}
+	if assigneeID == nil {
+		return nil, errors.New("cannot review unassigned task")
+	}
+	if *assigneeID == reviewerID {
+		return nil, errors.New("reviewer cannot review themselves")
+	}
+	if status != string(models.StatusCompleted) {
+		return nil, errors.New("only completed tasks can be reviewed")
+	}
+	if oldRating != nil {
+		return nil, errors.New("task already reviewed")
+	}
+
+	review := &models.UserReview{
+		TaskID:     taskID,
+		ReviewerID: reviewerID,
+		RevieweeID: *assigneeID,
+		Rating:     req.Rating,
+		Points:     req.Points,
+		Comment:    strings.TrimSpace(req.Comment),
+	}
+
+	err = tx.QueryRow(ctx, `
+		INSERT INTO user_reviews (task_id, reviewer_id, reviewee_id, rating, points, comment)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at
+	`, review.TaskID, review.ReviewerID, review.RevieweeID, review.Rating, review.Points, review.Comment).
+		Scan(&review.ID, &review.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE tasks
+		SET rating = $1, points = $2, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $3
+	`, review.Rating, review.Points, taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE users
+		SET total_points = total_points + $1,
+		    rating_sum = rating_sum + $2,
+		    rating_count = rating_count + 1,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = $3
+	`, review.Points, review.Rating, review.RevieweeID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.QueryRow(ctx, `
+		SELECT COALESCE(t.title, 'Unavailable task'), COALESCE(u.name, 'Deleted user')
+		FROM user_reviews ur
+		LEFT JOIN tasks t ON t.id = ur.task_id
+		LEFT JOIN users u ON u.id = ur.reviewer_id
+		WHERE ur.id = $1
+	`, review.ID).Scan(&review.TaskTitle, &review.ReviewerName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return review, nil
+}

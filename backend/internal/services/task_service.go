@@ -26,6 +26,7 @@ type taskRepository interface {
 	GetTaskDetail(ctx context.Context, id string) (*models.TaskDetail, error)
 	SearchTasks(ctx context.Context, p repository.TaskSearchParams) (*repository.TaskSearchResult, error)
 	RateTask(ctx context.Context, taskID string, rating, points int) error
+	CreateReview(ctx context.Context, taskID, reviewerID string, req *models.CreateUserReviewRequest) (*models.UserReview, error)
 }
 
 func NewTaskService(taskRepo taskRepository) *TaskService {
@@ -227,4 +228,26 @@ func (s *TaskService) RateTask(ctx context.Context, taskID, ownerID string, rati
 		return errors.New("unauthorized: only the task owner can rate the task")
 	}
 	return s.taskRepo.RateTask(ctx, taskID, rating, points)
+}
+
+func (s *TaskService) CreateReview(ctx context.Context, taskID, ownerID string, req *models.CreateUserReviewRequest) (*models.UserReview, error) {
+	task, err := s.taskRepo.GetByID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if task.OwnerID != ownerID {
+		return nil, errors.New("unauthorized: only the task owner can review completed work")
+	}
+	review, err := s.taskRepo.CreateReview(ctx, taskID, ownerID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    taskID,
+		ActorID:   &ownerID,
+		EventType: models.ActivityReviewSubmitted,
+	})
+
+	return review, nil
 }

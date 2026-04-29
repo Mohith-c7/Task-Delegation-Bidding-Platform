@@ -49,6 +49,7 @@ export default function TaskDetail() {
   const [activeTab, setActiveTab] = useState<'activity' | 'comments' | 'checklist'>('activity')
   const [rating, setRating] = useState(0)
   const [points, setPoints] = useState(100)
+  const [reviewComment, setReviewComment] = useState('')
 
   const { data: task, isLoading } = useQuery<TaskDetailData>({
     queryKey: ['task-detail', id],
@@ -77,9 +78,15 @@ export default function TaskDetail() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['task-detail', id] }),
   })
 
-  const rateMutation = useMutation({
-    mutationFn: ({ rating, points }: { rating: number, points: number }) => taskService.rateTask(id!, rating, points),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['task-detail', id] }),
+  const reviewMutation = useMutation({
+    mutationFn: ({ rating, points, comment }: { rating: number, points: number, comment: string }) =>
+      taskService.createReview(id!, { rating, points, comment }),
+    onSuccess: () => {
+      setReviewComment('')
+      qc.invalidateQueries({ queryKey: ['task-detail', id] })
+      qc.invalidateQueries({ queryKey: ['myProfile'] })
+      qc.invalidateQueries({ queryKey: ['publicProfile'] })
+    },
   })
 
   const toggleChecklist = (itemId: string) => {
@@ -268,10 +275,10 @@ export default function TaskDetail() {
               </Card>
             )}
 
-            {/* Rating submission */}
+            {/* Review submission */}
             {task.status === 'completed' && task.owner_id === user?.id && !task.rating && (
               <Card className="p-4">
-                <h3 className="text-sm font-semibold text-[var(--color-on-surface-variant)] uppercase tracking-wide mb-3">Rate completed task</h3>
+                <h3 className="text-sm font-semibold text-[var(--color-on-surface-variant)] uppercase tracking-wide mb-3">Review completed work</h3>
                 <div className="space-y-3 text-sm">
                   <div className="space-y-1">
                     <label className="text-[var(--color-on-surface-variant)]">Rating (1-5)</label>
@@ -297,13 +304,24 @@ export default function TaskDetail() {
                       className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                     />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[var(--color-on-surface-variant)]">Customer review</label>
+                    <textarea
+                      value={reviewComment}
+                      onChange={e => setReviewComment(e.target.value)}
+                      maxLength={1000}
+                      placeholder="Share what went well, delivery quality, communication, and any useful feedback."
+                      className="w-full min-h-24 px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    />
+                    <p className="text-xs text-[var(--color-on-surface-variant)] text-right">{reviewComment.length}/1000</p>
+                  </div>
                   <Button
                     size="sm"
                     className="w-full mt-2"
-                    onClick={() => rateMutation.mutate({ rating, points })}
-                    disabled={rateMutation.isPending || rating === 0}
+                    onClick={() => reviewMutation.mutate({ rating, points, comment: reviewComment.trim() })}
+                    disabled={reviewMutation.isPending || rating === 0}
                   >
-                    Submit Rating
+                    {reviewMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Review'}
                   </Button>
                 </div>
               </Card>

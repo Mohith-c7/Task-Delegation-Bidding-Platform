@@ -51,6 +51,12 @@ export interface CreateTaskRequest {
   org_id?: string
 }
 
+export interface CreateUserReviewRequest {
+  rating: number
+  points?: number
+  comment?: string
+}
+
 export const taskService = {
   async getAllTasks(params?: TaskSearchParams): Promise<TaskSearchResult> {
     const searchParams = new URLSearchParams()
@@ -98,5 +104,10 @@ export const taskService = {
 
   async rateTask(id: string, rating: number, points: number): Promise<void> {
     await api.post(`/tasks/${id}/rate`, { rating, points })
+  },
+
+  async createReview(id: string, data: CreateUserReviewRequest) {
+    const response = await api.post(`/tasks/${id}/reviews`, data)
+    return response.data.data
   },
 }

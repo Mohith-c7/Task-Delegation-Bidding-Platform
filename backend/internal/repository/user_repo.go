@@ -129,10 +129,17 @@ func (r *UserRepository) GetProfile(ctx context.Context, userID string) (*models
 		User:        *user,
 		TaskHistory: make([]models.TaskHistoryItem, 0),
 		BidHistory:  make([]models.BidHistoryItem, 0),
+		Reviews:     make([]models.UserReview, 0),
+		Role:        "member",
 	}
 
 	if profile.RatingCount > 0 {
 		profile.AvgRating = float64(profile.RatingSum) / float64(profile.RatingCount)
+		profile.OverallRating = profile.AvgRating
+	}
+
+	if role, err := r.GetProfileRole(ctx, userID); err == nil && role != "" {
+		profile.Role = role
 	}
 
 	// 1. Get task stats
@@ -155,6 +162,8 @@ func (r *UserRepository) GetProfile(ctx context.Context, userID string) (*models
 	if err == nil {
 		profile.TotalBidsPlaced = totalBids
 		profile.TotalBidsWon = approvedBids
+		profile.TasksApplied = totalBids
+		profile.TasksAccepted = approvedBids
 		if totalBids > 0 {
 			profile.SuccessRate = float64(approvedBids) / float64(totalBids)
 		}
@@ -195,7 +204,83 @@ func (r *UserRepository) GetProfile(ctx context.Context, userID string) (*models
 		bRows.Close()
 	}
 
+	reviews, err := r.GetUserReviews(ctx, userID)
+	if err == nil {
+		profile.Reviews = reviews
+		profile.ReviewCount = len(reviews)
+	}
+
 	return profile, nil
+}
+
+func (r *UserRepository) GetProfileRole(ctx context.Context, userID string) (string, error) {
+	var role string
+	err := r.db.QueryRow(ctx, `
+		SELECT role
+		FROM memberships
+		WHERE user_id = $1
+		ORDER BY CASE role
+			WHEN 'org_admin' THEN 1
+			WHEN 'manager' THEN 2
+			WHEN 'employee' THEN 3
+			ELSE 4
+		END
+		LIMIT 1
+	`, userID).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "member", nil
+		}
+		return "", err
+	}
+	return role, nil
+}
+
+func (r *UserRepository) GetUserReviews(ctx context.Context, userID string) ([]models.UserReview, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			ur.id,
+			ur.task_id,
+			COALESCE(t.title, 'Unavailable task') AS task_title,
+			ur.reviewer_id,
+			COALESCE(reviewer.name, 'Deleted user') AS reviewer_name,
+			ur.reviewee_id,
+			ur.rating,
+			ur.points,
+			ur.comment,
+			ur.created_at
+		FROM user_reviews ur
+		LEFT JOIN tasks t ON t.id = ur.task_id
+		LEFT JOIN users reviewer ON reviewer.id = ur.reviewer_id
+		WHERE ur.reviewee_id = $1
+		ORDER BY ur.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	reviews := make([]models.UserReview, 0)
+	for rows.Next() {
+		var review models.UserReview
+		if err := rows.Scan(
+			&review.ID,
+			&review.TaskID,
+			&review.TaskTitle,
+			&review.ReviewerID,
+			&review.ReviewerName,
+			&review.RevieweeID,
+			&review.Rating,
+			&review.Points,
+			&review.Comment,
+			&review.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, review)
+	}
+
+	return reviews, nil
 }
 
 func (r *UserRepository) GetLeaderboard(ctx context.Context) ([]*models.LeaderboardUser, error) {

@@ -176,6 +176,7 @@ func main() {
 			protected.GET("/users/me", authHandler.GetMe)
 			protected.GET("/users/me/profile", authHandler.GetMyProfile)
 			protected.GET("/users/:id/profile", authHandler.GetPublicProfile)
+			protected.GET("/users/:id/reviews", authHandler.GetUserReviews)
 			protected.PUT("/users/me", authHandler.UpdateMe)
 			protected.PUT("/users/me/password", authHandler.ChangePassword)
 			protected.PUT("/users/me/notifications", authHandler.UpdateNotificationPrefs)
@@ -192,6 +193,7 @@ func main() {
 			protected.POST("/tasks/:id/comments", taskHandler.AddComment)
 			protected.PUT("/tasks/:id/checklist", taskHandler.UpdateChecklist)
 			protected.POST("/tasks/:id/rate", taskHandler.RateTask)
+			protected.POST("/tasks/:id/reviews", taskHandler.CreateReview)
 
 			// Bid routes
 			protected.POST("/tasks/:id/bids", bidHandler.CreateBid)

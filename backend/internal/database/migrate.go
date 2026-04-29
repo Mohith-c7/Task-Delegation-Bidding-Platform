@@ -16,6 +16,7 @@ func RunMigrations(pool *pgxpool.Pool) error {
 	migrations := []string{
 		// 000001: Create users table
 		`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
+		`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`,
 		`CREATE TABLE IF NOT EXISTS users (
 			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 			name VARCHAR(255) NOT NULL,
@@ -217,6 +218,8 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		`CREATE INDEX IF NOT EXISTS idx_tasks_search ON tasks USING GIN(search_vector);`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS skills      TEXT[]  DEFAULT '{}';`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url  TEXT;`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio         TEXT;`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS resume_url  TEXT;`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS notif_prefs JSONB   DEFAULT '{}';`,
 
 		// 000017: Add questionnaire support
@@ -229,6 +232,22 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_points INT DEFAULT 0;`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_sum INT DEFAULT 0;`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_count INT DEFAULT 0;`,
+
+		// 000019: Create user reviews table
+		`CREATE TABLE IF NOT EXISTS user_reviews (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+			reviewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			reviewee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+			points INT NOT NULL DEFAULT 0 CHECK (points >= 0),
+			comment TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE(task_id, reviewer_id, reviewee_id)
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_user_reviews_reviewee_created ON user_reviews(reviewee_id, created_at DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_user_reviews_reviewer_created ON user_reviews(reviewer_id, created_at DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_user_reviews_task ON user_reviews(task_id);`,
 
 		// SEED DATA — realistic users, tasks, and bids so the platform never looks empty
 		`DO $$ BEGIN
