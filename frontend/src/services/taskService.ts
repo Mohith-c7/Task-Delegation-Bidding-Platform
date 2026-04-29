@@ -64,7 +64,7 @@ export const taskService = {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           if (Array.isArray(value)) {
-            value.forEach(v => searchParams.append(`${key}[]`, v))
+            value.forEach(v => searchParams.append(key, v))
           } else {
             searchParams.append(key, String(value))
           }

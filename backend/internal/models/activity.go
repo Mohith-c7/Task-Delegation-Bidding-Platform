@@ -18,13 +18,13 @@ type ActivityEntry struct {
 
 // Activity event types
 const (
-	ActivityCreated        = "task_created"
-	ActivityStatusChanged  = "status_changed"
-	ActivityFieldUpdated   = "field_updated"
-	ActivityBidPlaced      = "bid_placed"
-	ActivityBidApproved    = "bid_approved"
-	ActivityBidRejected    = "bid_rejected"
-	ActivityCommentAdded   = "comment_added"
+	ActivityCreated          = "task_created"
+	ActivityStatusChanged    = "status_changed"
+	ActivityFieldUpdated     = "field_updated"
+	ActivityBidPlaced        = "bid_placed"
+	ActivityBidApproved      = "bid_approved"
+	ActivityBidRejected      = "bid_rejected"
+	ActivityCommentAdded     = "comment_added"
 	ActivityChecklistUpdated = "checklist_updated"
-	ActivityReviewSubmitted = "review_submitted"
+	ActivityReviewSubmitted  = "review_submitted"
 )

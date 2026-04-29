@@ -52,6 +52,16 @@ func (m *mockTaskRepo) RateTask(_ context.Context, _ string, _, _ int) error {
 	m.rateTaskCalled = true
 	return m.rateTaskErr
 }
+func (m *mockTaskRepo) CreateReview(_ context.Context, taskID, reviewerID string, req *models.CreateUserReviewRequest) (*models.UserReview, error) {
+	return &models.UserReview{
+		ID:         "review-1",
+		TaskID:     taskID,
+		ReviewerID: reviewerID,
+		Rating:     req.Rating,
+		Points:     req.Points,
+		Comment:    req.Comment,
+	}, nil
+}
 
 func TestTransitionStatus_InvalidTransition(t *testing.T) {
 	repo := &mockTaskRepo{task: &models.Task{ID: "task-1", Status: models.StatusOpen}}
