@@ -190,6 +190,7 @@ func main() {
 			protected.PUT("/tasks/:id", taskHandler.UpdateTask)
 			protected.DELETE("/tasks/:id", taskHandler.DeleteTask)
 			protected.PATCH("/tasks/:id/status", taskHandler.TransitionStatus)
+			protected.POST("/tasks/:id/submissions", taskHandler.SubmitCompletion)
 			protected.POST("/tasks/:id/comments", taskHandler.AddComment)
 			protected.PUT("/tasks/:id/checklist", taskHandler.UpdateChecklist)
 			protected.POST("/tasks/:id/rate", taskHandler.RateTask)

@@ -201,17 +201,46 @@ func (h *TaskHandler) TransitionStatus(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	var req struct {
 		Status models.TaskStatus `json:"status" binding:"required"`
+		Reason string            `json:"reason" binding:"omitempty,max=1000"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, 400, err.Error())
 		return
 	}
-	task, err := h.taskService.TransitionStatus(c.Request.Context(), id, userID.(string), req.Status)
+	task, err := h.taskService.TransitionStatus(c.Request.Context(), id, userID.(string), req.Status, req.Reason)
 	if err != nil {
 		utils.ErrorResponse(c, 400, err.Error())
 		return
 	}
 	utils.SuccessResponse(c, 200, "Task status updated", task)
+}
+
+// SubmitCompletion handles POST /tasks/:id/submissions
+// @Summary Submit completion evidence
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID"
+// @Param request body models.SubmitCompletionRequest true "Completion evidence"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /tasks/{id}/submissions [post]
+func (h *TaskHandler) SubmitCompletion(c *gin.Context) {
+	id := c.Param("id")
+	userID, _ := c.Get("user_id")
+	var req models.SubmitCompletionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+
+	submission, err := h.taskService.SubmitCompletion(c.Request.Context(), id, userID.(string), &req)
+	if err != nil {
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 201, "Completion evidence submitted", submission)
 }
 
 // AddComment handles POST /tasks/:id/comments

@@ -25,6 +25,8 @@ type taskRepository interface {
 	AppendActivity(ctx context.Context, a *models.ActivityEntry) error
 	CreateComment(ctx context.Context, c *models.Comment) error
 	UpsertChecklist(ctx context.Context, taskID string, items []models.ChecklistItem) error
+	CreateTaskSubmission(ctx context.Context, submission *models.TaskSubmission) error
+	UpdateLatestSubmissionStatus(ctx context.Context, taskID, status, reason string) error
 	GetTaskDetail(ctx context.Context, id string) (*models.TaskDetail, error)
 	SearchTasks(ctx context.Context, p repository.TaskSearchParams) (*repository.TaskSearchResult, error)
 	RateTask(ctx context.Context, taskID string, rating, points int) error
@@ -182,10 +184,19 @@ func (s *TaskService) DeleteTask(ctx context.Context, id string, userID string) 
 }
 
 // TransitionStatus validates and applies a status transition.
-func (s *TaskService) TransitionStatus(ctx context.Context, taskID, actorID string, newStatus models.TaskStatus) (*models.Task, error) {
+func (s *TaskService) TransitionStatus(ctx context.Context, taskID, actorID string, newStatus models.TaskStatus, reason string) (*models.Task, error) {
 	task, err := s.taskRepo.GetByID(ctx, taskID)
 	if err != nil {
 		return nil, err
+	}
+
+	if newStatus == models.StatusRevision || newStatus == models.StatusDisputed {
+		if strings.TrimSpace(reason) == "" {
+			return nil, errors.New("reason is required for revision or dispute")
+		}
+	}
+	if newStatus == models.StatusSubmitted {
+		return nil, errors.New("assigned users must submit completion evidence")
 	}
 
 	allowed := models.AllowedTransitions[task.Status]
@@ -206,6 +217,15 @@ func (s *TaskService) TransitionStatus(ctx context.Context, taskID, actorID stri
 		return nil, err
 	}
 
+	switch newStatus {
+	case models.StatusCompleted:
+		_ = s.taskRepo.UpdateLatestSubmissionStatus(ctx, taskID, "accepted", "")
+	case models.StatusRevision:
+		_ = s.taskRepo.UpdateLatestSubmissionStatus(ctx, taskID, "revision_requested", strings.TrimSpace(reason))
+	case models.StatusDisputed:
+		_ = s.taskRepo.UpdateLatestSubmissionStatus(ctx, taskID, "disputed", strings.TrimSpace(reason))
+	}
+
 	// Append activity
 	newStatusStr := string(newStatus)
 	fieldName := "status"
@@ -217,8 +237,69 @@ func (s *TaskService) TransitionStatus(ctx context.Context, taskID, actorID stri
 		OldValue:  &oldStatus,
 		NewValue:  &newStatusStr,
 	})
+	if strings.TrimSpace(reason) != "" {
+		fieldName := "review_reason"
+		newValue := strings.TrimSpace(reason)
+		eventType := models.ActivityRevisionRequested
+		if newStatus == models.StatusDisputed {
+			eventType = models.ActivityDisputeOpened
+		}
+		_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+			TaskID:    taskID,
+			ActorID:   &actorID,
+			EventType: eventType,
+			FieldName: &fieldName,
+			NewValue:  &newValue,
+		})
+	}
 
 	return task, nil
+}
+
+func (s *TaskService) SubmitCompletion(ctx context.Context, taskID, actorID string, req *models.SubmitCompletionRequest) (*models.TaskSubmission, error) {
+	task, err := s.taskRepo.GetByID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if task.AssignedTo == nil || *task.AssignedTo != actorID {
+		return nil, errors.New("only the assigned user can submit completion evidence")
+	}
+	if task.Status != models.StatusInProgress && task.Status != models.StatusRevision {
+		return nil, errors.New("task must be in progress or revision requested before completion can be submitted")
+	}
+
+	submission := &models.TaskSubmission{
+		TaskID:        taskID,
+		SubmittedBy:   actorID,
+		Notes:         strings.TrimSpace(req.Notes),
+		PRURL:         strings.TrimSpace(req.PRURL),
+		DemoURL:       strings.TrimSpace(req.DemoURL),
+		AttachmentURL: strings.TrimSpace(req.AttachmentURL),
+		Status:        "submitted",
+	}
+	if err := s.taskRepo.CreateTaskSubmission(ctx, submission); err != nil {
+		return nil, err
+	}
+
+	oldStatus := string(task.Status)
+	task.Status = models.StatusSubmitted
+	if err := s.taskRepo.Update(ctx, taskID, task); err != nil {
+		return nil, err
+	}
+
+	newStatus := string(task.Status)
+	statusField := "status"
+	_ = s.taskRepo.AppendActivity(ctx, &models.ActivityEntry{
+		TaskID:    taskID,
+		OrgID:     optionalStringPtr(task.OrgID),
+		ActorID:   &actorID,
+		EventType: models.ActivityCompletionSubmitted,
+		FieldName: &statusField,
+		OldValue:  &oldStatus,
+		NewValue:  &newStatus,
+	})
+
+	return submission, nil
 }
 
 // AddComment adds a comment to a task.

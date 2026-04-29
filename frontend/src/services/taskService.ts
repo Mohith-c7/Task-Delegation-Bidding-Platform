@@ -8,7 +8,7 @@ export interface Task {
   questions: string[]
   deadline: string
   priority: 'low' | 'medium' | 'high' | 'critical'
-  status: 'open' | 'assigned' | 'in_progress' | 'completed' | 'closed'
+  status: 'open' | 'assigned' | 'in_progress' | 'submitted_for_review' | 'revision_requested' | 'disputed' | 'completed' | 'closed'
   owner_id: string
   owner_name: string
   assigned_to: string | null
@@ -55,6 +55,13 @@ export interface CreateUserReviewRequest {
   rating: number
   points?: number
   comment?: string
+}
+
+export interface SubmitCompletionRequest {
+  notes: string
+  pr_url?: string
+  demo_url?: string
+  attachment_url?: string
 }
 
 export const taskService = {
@@ -108,6 +115,11 @@ export const taskService = {
 
   async createReview(id: string, data: CreateUserReviewRequest) {
     const response = await api.post(`/tasks/${id}/reviews`, data)
+    return response.data.data
+  },
+
+  async submitCompletion(id: string, data: SubmitCompletionRequest) {
+    const response = await api.post(`/tasks/${id}/submissions`, data)
     return response.data.data
   },
 }

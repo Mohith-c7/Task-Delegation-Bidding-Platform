@@ -2,7 +2,7 @@ import React from 'react'
 import { cn } from '../utils'
 
 type BadgeVariant = 'default' | 'primary' | 'success' | 'warning' | 'error' | 'info' | 'purple'
-type StatusVariant = 'open' | 'assigned' | 'in_progress' | 'completed' | 'closed'
+type StatusVariant = 'open' | 'assigned' | 'in_progress' | 'submitted_for_review' | 'revision_requested' | 'disputed' | 'completed' | 'closed'
 type PriorityVariant = 'low' | 'medium' | 'high' | 'critical'
 type BadgeSize = 'sm' | 'md'
 
@@ -69,6 +69,9 @@ const statusConfig: Record<StatusVariant, { label: string; variant: BadgeVariant
   open:        { label: 'Open',        variant: 'primary' },
   assigned:    { label: 'Assigned',    variant: 'purple' },
   in_progress: { label: 'In Progress', variant: 'warning' },
+  submitted_for_review: { label: 'Submitted', variant: 'primary' },
+  revision_requested:   { label: 'Revision',  variant: 'warning' },
+  disputed:             { label: 'Disputed',  variant: 'error' },
   completed:   { label: 'Completed',   variant: 'success' },
   closed:      { label: 'Closed',      variant: 'default' },
 }

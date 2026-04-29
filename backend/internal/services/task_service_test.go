@@ -43,6 +43,13 @@ func (m *mockTaskRepo) CreateComment(_ context.Context, _ *models.Comment) error
 func (m *mockTaskRepo) UpsertChecklist(_ context.Context, _ string, _ []models.ChecklistItem) error {
 	return nil
 }
+func (m *mockTaskRepo) CreateTaskSubmission(_ context.Context, submission *models.TaskSubmission) error {
+	submission.ID = "submission-1"
+	return nil
+}
+func (m *mockTaskRepo) UpdateLatestSubmissionStatus(_ context.Context, _, _, _ string) error {
+	return nil
+}
 func (m *mockTaskRepo) GetTaskDetail(_ context.Context, _ string) (*models.TaskDetail, error) {
 	return nil, nil
 }
@@ -71,7 +78,7 @@ func TestTransitionStatus_InvalidTransition(t *testing.T) {
 	repo := &mockTaskRepo{task: &models.Task{ID: "task-1", Status: models.StatusOpen}}
 	svc := NewTaskService(repo)
 
-	_, err := svc.TransitionStatus(context.Background(), "task-1", "actor-1", models.StatusCompleted)
+	_, err := svc.TransitionStatus(context.Background(), "task-1", "actor-1", models.StatusCompleted, "")
 	if err == nil {
 		t.Fatal("expected invalid transition error")
 	}
@@ -81,7 +88,7 @@ func TestTransitionStatus_ValidTransition(t *testing.T) {
 	repo := &mockTaskRepo{task: &models.Task{ID: "task-1", Status: models.StatusOpen}}
 	svc := NewTaskService(repo)
 
-	task, err := svc.TransitionStatus(context.Background(), "task-1", "actor-1", models.StatusAssigned)
+	task, err := svc.TransitionStatus(context.Background(), "task-1", "actor-1", models.StatusAssigned, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

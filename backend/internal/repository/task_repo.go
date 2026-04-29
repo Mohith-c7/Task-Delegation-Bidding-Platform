@@ -247,6 +247,11 @@ func (r *TaskRepository) GetTaskDetail(ctx context.Context, id string) (*models.
 		}
 	}
 
+	submission, err := r.GetLatestTaskSubmission(ctx, id)
+	if err == nil {
+		detail.Submission = submission
+	}
+
 	return detail, nil
 }
 
@@ -278,6 +283,64 @@ func (r *TaskRepository) UpsertChecklist(ctx context.Context, taskID string, ite
 		}
 	}
 	return nil
+}
+
+func (r *TaskRepository) CreateTaskSubmission(ctx context.Context, submission *models.TaskSubmission) error {
+	query := `
+		INSERT INTO task_submissions (task_id, submitted_by, notes, pr_url, demo_url, attachment_url, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at, updated_at
+	`
+	return r.db.QueryRow(ctx, query,
+		submission.TaskID,
+		submission.SubmittedBy,
+		submission.Notes,
+		submission.PRURL,
+		submission.DemoURL,
+		submission.AttachmentURL,
+		submission.Status,
+	).Scan(&submission.ID, &submission.CreatedAt, &submission.UpdatedAt)
+}
+
+func (r *TaskRepository) GetLatestTaskSubmission(ctx context.Context, taskID string) (*models.TaskSubmission, error) {
+	submission := &models.TaskSubmission{}
+	err := r.db.QueryRow(ctx, `
+		SELECT id, task_id, submitted_by, notes, pr_url, demo_url, attachment_url, status, review_reason, created_at, updated_at
+		FROM task_submissions
+		WHERE task_id = $1
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, taskID).Scan(
+		&submission.ID,
+		&submission.TaskID,
+		&submission.SubmittedBy,
+		&submission.Notes,
+		&submission.PRURL,
+		&submission.DemoURL,
+		&submission.AttachmentURL,
+		&submission.Status,
+		&submission.ReviewReason,
+		&submission.CreatedAt,
+		&submission.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return submission, nil
+}
+
+func (r *TaskRepository) UpdateLatestSubmissionStatus(ctx context.Context, taskID, status, reason string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE task_submissions
+		SET status = $1, review_reason = $2, updated_at = NOW()
+		WHERE id = (
+			SELECT id FROM task_submissions
+			WHERE task_id = $3
+			ORDER BY created_at DESC
+			LIMIT 1
+		)
+	`, status, reason, taskID)
+	return err
 }
 
 // TaskSearchParams holds all search/filter/sort/pagination parameters.

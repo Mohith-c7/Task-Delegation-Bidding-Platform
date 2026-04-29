@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, CheckSquare, Square, Activity,
-  Clock, User, Tag, ChevronRight, Send, Loader2, Star
+  Clock, User, Tag, ChevronRight, Send, Loader2, Star, Link as LinkIcon
 } from 'lucide-react'
 import api from '../services/api'
 import Layout from '../components/common/Layout'
@@ -22,6 +22,16 @@ interface TaskDetailData {
   activity: Array<{ id: string; event_type: string; field_name?: string; old_value?: string; new_value?: string; actor_name?: string; created_at: string }>
   comments: Array<{ id: string; author_id: string; author_name?: string; body: string; created_at: string }>
   checklist: Array<{ id: string; title: string; is_done: boolean; position: number }>
+  submission?: {
+    id: string
+    notes: string
+    pr_url?: string
+    demo_url?: string
+    attachment_url?: string
+    status: string
+    review_reason?: string
+    created_at: string
+  }
 }
 
 const priorityColors: Record<string, string> = {
@@ -29,13 +39,17 @@ const priorityColors: Record<string, string> = {
 }
 
 const statusColors: Record<string, string> = {
-  open: 'primary', assigned: 'purple', in_progress: 'warning', completed: 'success', closed: 'default'
+  open: 'primary', assigned: 'purple', in_progress: 'warning', submitted_for_review: 'primary',
+  revision_requested: 'warning', disputed: 'error', completed: 'success', closed: 'default'
 }
 
 const allowedTransitions: Record<string, string[]> = {
   open: ['assigned', 'closed'],
   assigned: ['in_progress'],
-  in_progress: ['completed'],
+  in_progress: ['submitted_for_review'],
+  submitted_for_review: ['completed', 'revision_requested', 'disputed'],
+  revision_requested: ['submitted_for_review', 'disputed'],
+  disputed: ['revision_requested', 'closed'],
   completed: ['closed'],
 }
 
@@ -50,6 +64,11 @@ export default function TaskDetail() {
   const [rating, setRating] = useState(0)
   const [points, setPoints] = useState(100)
   const [reviewComment, setReviewComment] = useState('')
+  const [submissionNotes, setSubmissionNotes] = useState('')
+  const [prUrl, setPrUrl] = useState('')
+  const [demoUrl, setDemoUrl] = useState('')
+  const [attachmentUrl, setAttachmentUrl] = useState('')
+  const [reviewReason, setReviewReason] = useState('')
 
   const { data: task, isLoading } = useQuery<TaskDetailData>({
     queryKey: ['task-detail', id],
@@ -61,8 +80,11 @@ export default function TaskDetail() {
   })
 
   const transitionMutation = useMutation({
-    mutationFn: (status: string) => api.patch(`/tasks/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['task-detail', id] }),
+    mutationFn: ({ status, reason }: { status: string, reason?: string }) => api.patch(`/tasks/${id}/status`, { status, reason }),
+    onSuccess: () => {
+      setReviewReason('')
+      qc.invalidateQueries({ queryKey: ['task-detail', id] })
+    },
   })
 
   const commentMutation = useMutation({
@@ -86,6 +108,22 @@ export default function TaskDetail() {
       qc.invalidateQueries({ queryKey: ['task-detail', id] })
       qc.invalidateQueries({ queryKey: ['myProfile'] })
       qc.invalidateQueries({ queryKey: ['publicProfile'] })
+    },
+  })
+
+  const submissionMutation = useMutation({
+    mutationFn: () => taskService.submitCompletion(id!, {
+      notes: submissionNotes.trim(),
+      pr_url: prUrl.trim() || undefined,
+      demo_url: demoUrl.trim() || undefined,
+      attachment_url: attachmentUrl.trim() || undefined,
+    }),
+    onSuccess: () => {
+      setSubmissionNotes('')
+      setPrUrl('')
+      setDemoUrl('')
+      setAttachmentUrl('')
+      qc.invalidateQueries({ queryKey: ['task-detail', id] })
     },
   })
 
@@ -113,6 +151,7 @@ export default function TaskDetail() {
 
   const nextStatuses = allowedTransitions[task.status] || []
   const completedChecklist = task.checklist.filter(ci => ci.is_done).length
+  const canSubmitCompletion = task.assigned_to === user?.id && ['in_progress', 'revision_requested'].includes(task.status)
 
   return (
     <Layout>
@@ -264,12 +303,67 @@ export default function TaskDetail() {
                       variant="secondary"
                       size="sm"
                       className="w-full justify-between"
-                      onClick={() => transitionMutation.mutate(s)}
-                      disabled={transitionMutation.isPending}
+                      onClick={() => transitionMutation.mutate({ status: s, reason: reviewReason.trim() || undefined })}
+                      disabled={transitionMutation.isPending || (['revision_requested', 'disputed'].includes(s) && !reviewReason.trim())}
                     >
                       {s.replace('_', ' ')}
                       <ChevronRight className="w-4 h-4" />
                     </Button>
+                  ))}
+                </div>
+                {nextStatuses.some(s => ['revision_requested', 'disputed'].includes(s)) && (
+                  <textarea
+                    value={reviewReason}
+                    onChange={e => setReviewReason(e.target.value)}
+                    maxLength={1000}
+                    placeholder="Reason for revision or dispute"
+                    className="mt-3 w-full min-h-20 px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                  />
+                )}
+              </Card>
+            )}
+
+            {canSubmitCompletion && (
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold text-[var(--color-on-surface-variant)] uppercase tracking-wide mb-3">Submit completion evidence</h3>
+                <div className="space-y-3 text-sm">
+                  <textarea
+                    value={submissionNotes}
+                    onChange={e => setSubmissionNotes(e.target.value)}
+                    maxLength={2000}
+                    placeholder="Summarize what was completed, how it was verified, and any handoff notes."
+                    className="w-full min-h-28 px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                  />
+                  <input value={prUrl} onChange={e => setPrUrl(e.target.value)} placeholder="PR URL" className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm" />
+                  <input value={demoUrl} onChange={e => setDemoUrl(e.target.value)} placeholder="Demo URL" className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm" />
+                  <input value={attachmentUrl} onChange={e => setAttachmentUrl(e.target.value)} placeholder="Attachment URL" className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm" />
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => submissionMutation.mutate()}
+                    disabled={submissionMutation.isPending || submissionNotes.trim().length < 5}
+                  >
+                    {submissionMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Evidence'}
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {task.submission && (
+              <Card className="p-4">
+                <h3 className="text-sm font-semibold text-[var(--color-on-surface-variant)] uppercase tracking-wide mb-3">Latest submission</h3>
+                <div className="space-y-2 text-sm text-[var(--color-on-surface)]">
+                  <Badge variant={task.submission.status === 'disputed' ? 'error' : task.submission.status === 'revision_requested' ? 'warning' : 'primary'}>{task.submission.status.replace('_', ' ')}</Badge>
+                  <p className="text-[var(--color-on-surface-variant)]">{task.submission.notes}</p>
+                  {task.submission.review_reason && <p className="text-[var(--color-error)]">{task.submission.review_reason}</p>}
+                  {[
+                    ['PR', task.submission.pr_url],
+                    ['Demo', task.submission.demo_url],
+                    ['Attachment', task.submission.attachment_url],
+                  ].filter(([, href]) => href).map(([label, href]) => (
+                    <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[var(--color-primary)] hover:underline">
+                      <LinkIcon className="w-4 h-4" /> {label}
+                    </a>
                   ))}
                 </div>
               </Card>
