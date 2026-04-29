@@ -14,6 +14,7 @@ import PublicProfile from './pages/PublicProfile'
 import Leaderboard from './pages/Leaderboard'
 import Notifications from './pages/Notifications'
 import ManagerQueue from './pages/ManagerQueue'
+import AcceptInvite from './pages/AcceptInvite'
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
 import { useAuthStore } from './store/authStore'
 import { ToastProvider } from './design-system'
@@ -37,6 +38,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/accept-invite" element={<ProtectedRoute><AcceptInvite /></ProtectedRoute>} />
             <Route path="/dashboard"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/my-tasks"     element={<ProtectedRoute><MyTasks /></ProtectedRoute>} />
             <Route path="/my-bids"      element={<ProtectedRoute><MyBids /></ProtectedRoute>} />

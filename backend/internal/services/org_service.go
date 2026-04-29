@@ -20,6 +20,8 @@ var (
 	ErrAlreadyMember     = errors.New("user is already a member")
 	ErrInvalidInvitation = errors.New("invitation is invalid or expired")
 	ErrForbidden         = errors.New("forbidden")
+	ErrEmailMismatch     = errors.New("invitation can only be accepted by the invited email address")
+	ErrLastAdmin         = errors.New("organization must keep at least one admin")
 )
 
 type OrgService struct {
@@ -153,6 +155,13 @@ func (s *OrgService) AcceptInvitation(ctx context.Context, token, userID string)
 		_ = s.orgRepo.UpdateInvitationStatus(ctx, inv.ID, models.InvitationExpired)
 		return nil, ErrInvalidInvitation
 	}
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.EqualFold(strings.TrimSpace(user.Email), strings.TrimSpace(inv.Email)) {
+		return nil, ErrEmailMismatch
+	}
 
 	membership := &models.Membership{
 		OrgID:  inv.OrgID,
@@ -186,6 +195,9 @@ func (s *OrgService) RevokeInvitation(ctx context.Context, orgID, invitationID, 
 
 // RemoveMember removes a user from the org.
 func (s *OrgService) RemoveMember(ctx context.Context, orgID, userID, actorID string) error {
+	if err := s.ensureNotLastAdmin(ctx, orgID, userID, "remove"); err != nil {
+		return err
+	}
 	if err := s.orgRepo.RemoveMember(ctx, orgID, userID); err != nil {
 		return err
 	}
@@ -202,6 +214,11 @@ func (s *OrgService) RemoveMember(ctx context.Context, orgID, userID, actorID st
 
 // ChangeRole updates a member's role and records audit entry.
 func (s *OrgService) ChangeRole(ctx context.Context, orgID, userID string, newRole models.Role, actorID string) error {
+	if newRole != models.RoleOrgAdmin {
+		if err := s.ensureNotLastAdmin(ctx, orgID, userID, "change_role"); err != nil {
+			return err
+		}
+	}
 	if err := s.orgRepo.UpdateMemberRole(ctx, orgID, userID, newRole); err != nil {
 		return err
 	}
@@ -246,4 +263,25 @@ func (s *OrgService) ListMembers(ctx context.Context, orgID string) ([]models.Me
 // ListInvitations returns all invitations for an org.
 func (s *OrgService) ListInvitations(ctx context.Context, orgID string) ([]models.Invitation, error) {
 	return s.orgRepo.ListInvitations(ctx, orgID)
+}
+
+func (s *OrgService) ensureNotLastAdmin(ctx context.Context, orgID, targetUserID, action string) error {
+	members, err := s.orgRepo.ListMembers(ctx, orgID)
+	if err != nil {
+		return err
+	}
+	adminCount := 0
+	targetIsAdmin := false
+	for _, member := range members {
+		if member.Role == models.RoleOrgAdmin {
+			adminCount++
+			if member.UserID == targetUserID {
+				targetIsAdmin = true
+			}
+		}
+	}
+	if targetIsAdmin && adminCount <= 1 {
+		return fmt.Errorf("%w: cannot %s the last org admin", ErrLastAdmin, action)
+	}
+	return nil
 }
