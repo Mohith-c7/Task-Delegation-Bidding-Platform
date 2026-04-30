@@ -45,6 +45,25 @@ export default function EditTaskModal({ task, isOpen, onClose, onSuccess }: Edit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!task) return
+
+    // --- Frontend validation ---
+    if (form.title.trim().length < 3) {
+      toastError('Title must be at least 3 characters long')
+      return
+    }
+    if (form.description.trim().length < 10) {
+      toastError('Description must be at least 10 characters long')
+      return
+    }
+    if (form.deadline) {
+      const newDeadline = new Date(form.deadline)
+      if (newDeadline <= new Date()) {
+        toastError('Deadline must be in the future')
+        return
+      }
+    }
+    // --- End validation ---
+
     setLoading(true)
     try {
       const skillsArray = form.skills ? form.skills.split(',').map(s => s.trim()).filter(Boolean) : []
@@ -122,7 +141,7 @@ export default function EditTaskModal({ task, isOpen, onClose, onSuccess }: Edit
             <label className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
               <Calendar size={11} className="text-text-tertiary" /> Deadline
             </label>
-            <Input type="datetime-local" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} required disabled={loading} />
+            <Input type="datetime-local" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} min={new Date().toISOString().slice(0, 16)} required disabled={loading} />
           </div>
           <div className="space-y-1.5">
             <label className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">

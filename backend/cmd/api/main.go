@@ -48,24 +48,22 @@ func main() {
 	}
 
 	// Connect to Redis (parse full URL with auth)
+	var redisClient *redis.Client
+
 	redisOpts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
-		log.Printf("⚠ Warning: Unable to parse Redis URL: %v\n", err)
-		log.Println("  Falling back to localhost:6379")
-		redisOpts = &redis.Options{
-			Addr: "localhost:6379",
-			DB:   0,
+		log.Printf("⚠ Warning: Unable to parse Redis URL: %v — Redis features disabled\n", err)
+	} else {
+		client := redis.NewClient(redisOpts)
+		if pingErr := client.Ping(context.Background()).Err(); pingErr != nil {
+			log.Printf("⚠ Warning: Unable to connect to Redis: %v — Redis features disabled\n", pingErr)
+			client.Close()
+		} else {
+			redisClient = client
+			defer redisClient.Close()
+			log.Println("✓ Connected to Redis (Upstash)")
 		}
 	}
-
-	redisClient := redis.NewClient(redisOpts)
-	defer redisClient.Close()
-
-	// Test Redis connection
-	if err := redisClient.Ping(context.Background()).Err(); err != nil {
-		log.Fatal("Unable to connect to Redis (Upstash):", err)
-	}
-	log.Println("✓ Connected to Redis (Upstash)")
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(dbPool)

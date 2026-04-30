@@ -24,7 +24,10 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
   const [error, setError] = useState('')
   const orgID = useAuthStore(s => s.orgID)
 
-  const handleAddQuestion = () => setQuestions([...questions, ''])
+  const handleAddQuestion = () => {
+    if (questions.length >= 10) return
+    setQuestions([...questions, ''])
+  }
   const handleRemoveQuestion = (index: number) => setQuestions(questions.filter((_, i) => i !== index))
   const handleQuestionChange = (index: number, value: string) => {
     const newQ = [...questions]
@@ -35,13 +38,34 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // --- Frontend validation ---
+    if (formData.title.trim().length < 3) {
+      setError('Title must be at least 3 characters long')
+      return
+    }
+    if (formData.description.trim().length < 10) {
+      setError('Description must be at least 10 characters long')
+      return
+    }
+    if (!formData.deadline) {
+      setError('Please select a deadline')
+      return
+    }
+    const deadlineDate = new Date(formData.deadline)
+    if (deadlineDate <= new Date()) {
+      setError('Deadline must be in the future')
+      return
+    }
+    // --- End validation ---
+
     setLoading(true)
     try {
       const skillsArray = formData.skills ? formData.skills.split(',').map(s => s.trim()).filter(Boolean) : []
       const filledQuestions = questions.filter(q => q.trim() !== '')
       await taskService.createTask({
         ...formData,
-        deadline: new Date(formData.deadline).toISOString(),
+        deadline: deadlineDate.toISOString(),
         skills: skillsArray,
         questions: filledQuestions,
         ...(orgID ? { org_id: orgID } : {}),
@@ -141,8 +165,8 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
             <label className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
               <FileText size={11} className="text-text-tertiary" /> Questionnaire (Optional)
             </label>
-            <Button type="button" variant="secondary" size="sm" onClick={handleAddQuestion} disabled={loading} leftIcon={<Plus size={12} />}>
-              Add Question
+            <Button type="button" variant="secondary" size="sm" onClick={handleAddQuestion} disabled={loading || questions.length >= 10} leftIcon={<Plus size={12} />}>
+              Add Question {questions.length >= 10 ? '(max 10)' : ''}
             </Button>
           </div>
           {questions.length === 0 ? (
@@ -178,6 +202,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: CreateTa
               type="datetime-local"
               value={formData.deadline}
               onChange={e => setFormData({ ...formData, deadline: e.target.value })}
+              min={new Date().toISOString().slice(0, 16)}
               required disabled={loading}
             />
           </div>

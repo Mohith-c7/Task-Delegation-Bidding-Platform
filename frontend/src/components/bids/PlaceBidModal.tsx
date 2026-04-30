@@ -25,11 +25,48 @@ export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: Plac
     e.preventDefault()
     if (!task) return
     setError('')
+
+    // --- Frontend validation ---
+    if (formData.message.trim().length < 10) {
+      setError('Proposal must be at least 10 characters long')
+      return
+    }
+
+    if (!formData.estimated_completion) {
+      setError('Please select an estimated completion date')
+      return
+    }
+
+    const completionDate = new Date(formData.estimated_completion)
+    const now = new Date()
+    const taskDeadline = new Date(task.deadline)
+
+    if (completionDate <= now) {
+      setError('Estimated completion date must be in the future')
+      return
+    }
+
+    if (completionDate > taskDeadline) {
+      setError(`Estimated completion date cannot be after the task deadline (${taskDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`)
+      return
+    }
+
+    // Validate all questionnaire answers are filled
+    if (task.questions && task.questions.length > 0) {
+      for (const q of task.questions) {
+        if (!answers[q] || answers[q].trim() === '') {
+          setError('Please answer all questionnaire questions')
+          return
+        }
+      }
+    }
+    // --- End validation ---
+
     setLoading(true)
     try {
       await bidService.placeBid(task.id, {
         message: formData.message,
-        estimated_completion: new Date(formData.estimated_completion).toISOString(),
+        estimated_completion: completionDate.toISOString(),
         answers: Object.keys(answers).length > 0 ? answers : undefined,
       })
       onSuccess()
@@ -130,13 +167,22 @@ export default function PlaceBidModal({ isOpen, task, onClose, onSuccess }: Plac
         <div className="space-y-1.5">
           <label className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
             <Calendar size={11} className="text-text-tertiary" /> Estimated Completion Date
+            <span className="text-text-tertiary font-normal ml-0.5">· must be on or before task deadline</span>
           </label>
           <Input
             type="datetime-local"
             value={formData.estimated_completion}
             onChange={e => setFormData({ ...formData, estimated_completion: e.target.value })}
+            min={new Date().toISOString().slice(0, 16)}
+            max={task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : undefined}
             required disabled={loading}
           />
+          {task.deadline && (
+            <p className="text-[10px] text-text-tertiary flex items-center gap-1">
+              <Clock size={9} />
+              Task deadline: {new Date(task.deadline).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
         </div>
 
         <div className="flex gap-3 pt-2 border-t border-border mt-4">

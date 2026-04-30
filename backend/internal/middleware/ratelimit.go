@@ -16,6 +16,12 @@ import (
 // window: duration of the sliding window
 func RateLimit(rdb *redis.Client, keyPrefix string, limit int, window time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// If Redis is unavailable, skip rate limiting and allow the request
+		if rdb == nil {
+			c.Next()
+			return
+		}
+
 		var keyVal string
 		switch keyPrefix {
 		case "ip":
