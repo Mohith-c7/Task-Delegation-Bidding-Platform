@@ -23,7 +23,17 @@ export default function Login() {
       toast.success('Welcome back!', `Signed in as ${response.user.name}`)
       navigate('/dashboard')
     } catch (err: any) {
-      toast.error('Sign in failed', err.response?.data?.error || 'Please check your credentials')
+      const serverMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.response?.data?.details
+
+      const networkMsg =
+        err?.code === 'ERR_NETWORK' || !err?.response
+          ? 'Unable to reach the server. Check API URL/CORS and try again.'
+          : null
+
+      toast.error('Sign in failed', serverMsg || networkMsg || 'Please check your credentials')
     } finally {
       setLoading(false)
     }
