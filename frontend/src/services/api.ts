@@ -27,7 +27,7 @@ const normalizeArrayFields = (obj: unknown): unknown => {
   if (Array.isArray(obj)) return obj.map(normalizeArrayFields)
   if (obj && typeof obj === 'object') {
     const o = obj as Record<string, unknown>
-    for (const key of ['skills', 'questions', 'task_history', 'bid_history', 'reviews']) {
+    for (const key of ['skills', 'questions', 'task_history', 'bid_history', 'reviews', 'activity', 'comments', 'checklist']) {
       if (key in o && o[key] === null) o[key] = []
     }
     for (const val of Object.values(o)) normalizeArrayFields(val)
