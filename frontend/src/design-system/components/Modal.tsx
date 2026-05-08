@@ -123,7 +123,7 @@ interface ConfirmModalProps {
   description?: string
   confirmLabel?: string
   cancelLabel?: string
-  variant?: 'danger' | 'primary'
+  variant?: 'danger' | 'primary' | 'success'
   loading?: boolean
 }
 
@@ -135,7 +135,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   description,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
-  variant = 'danger',
+  variant = 'primary',
   loading = false,
 }) => (
   <Modal

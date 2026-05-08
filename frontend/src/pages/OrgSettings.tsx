@@ -635,37 +635,39 @@ export default function OrgSettings() {
         )}
 
         {/* Role change modal */}
-        {roleChangeTarget && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRoleChangeTarget(null)} />
-            <div className="relative bg-white rounded-2xl shadow-4 p-6 w-full max-w-sm animate-scale-in">
-              <h3 className="text-base font-bold text-text-primary mb-1">Change Role</h3>
-              <p className="text-sm text-text-secondary mb-5">Update role for <span className="font-semibold">{roleChangeTarget.user_name}</span></p>
-              <div className="space-y-2 mb-5">
-                {Object.entries(ROLE_META).map(([key, meta]) => (
-                  <button
-                    key={key}
-                    onClick={() => changeRole.mutate({ userID: roleChangeTarget.user_id, role: key })}
-                    disabled={roleChangeTarget.role === key || changeRole.isPending}
-                    className={cn(
-                      'w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
-                      roleChangeTarget.role === key ? `${meta.bg} border-current` : 'border-border hover:border-border-strong hover:bg-surface-2',
-                      'disabled:opacity-60'
-                    )}
-                  >
-                    <span className={cn('w-8 h-8 rounded-lg flex items-center justify-center', meta.bg, meta.color)}>{meta.icon}</span>
-                    <div>
-                      <p className={cn('text-sm font-semibold', meta.color)}>{meta.label}</p>
-                      <p className="text-xs text-text-tertiary">{meta.desc}</p>
-                    </div>
-                    {roleChangeTarget.role === key && <CheckCircle2 size={15} className="ml-auto text-primary" />}
-                  </button>
-                ))}
-              </div>
-              <Button variant="ghost" className="w-full" onClick={() => setRoleChangeTarget(null)}>Cancel</Button>
-            </div>
+        <Modal
+          open={!!roleChangeTarget}
+          onClose={() => setRoleChangeTarget(null)}
+          size="sm"
+          title="Change Role"
+          description={roleChangeTarget ? `Update role for ${roleChangeTarget.user_name}` : ''}
+          hideClose
+        >
+          <div className="space-y-2 mb-2">
+            {Object.entries(ROLE_META).map(([key, meta]) => (
+              <button
+                key={key}
+                onClick={() => changeRole.mutate({ userID: roleChangeTarget!.user_id, role: key })}
+                disabled={roleChangeTarget?.role === key || changeRole.isPending}
+                className={cn(
+                  'w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
+                  roleChangeTarget?.role === key ? `${meta.bg} border-current` : 'border-border hover:border-border-strong hover:bg-surface-2',
+                  'disabled:opacity-60'
+                )}
+              >
+                <span className={cn('w-8 h-8 rounded-lg flex items-center justify-center', meta.bg, meta.color)}>{meta.icon}</span>
+                <div>
+                  <p className={cn('text-sm font-semibold', meta.color)}>{meta.label}</p>
+                  <p className="text-xs text-text-tertiary">{meta.desc}</p>
+                </div>
+                {roleChangeTarget?.role === key && <CheckCircle2 size={15} className="ml-auto text-primary" />}
+              </button>
+            ))}
           </div>
-        )}
+          <div className="mt-4 pt-4 border-t border-border">
+            <Button variant="ghost" className="w-full" onClick={() => setRoleChangeTarget(null)}>Cancel</Button>
+          </div>
+        </Modal>
 
         {/* Remove member confirm */}
         <ConfirmModal

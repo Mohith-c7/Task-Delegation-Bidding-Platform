@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Task } from '../../services/taskService'
 import { bidService, BidWithDetails } from '../../services/bidService'
 import { useAuthStore } from '../../store/authStore'
-import { Button, Avatar, StatusBadge, Modal } from '../../design-system'
+import { Button, Avatar, StatusBadge, Modal, ConfirmModal } from '../../design-system'
 import { Eye, CheckCircle2, XCircle, Clock, Calendar, Users, X, Sparkles } from 'lucide-react'
 import { cn } from '../../design-system/utils'
 
@@ -45,20 +45,33 @@ export default function ViewBidsModal({ isOpen, task, onClose, onBidApproved }: 
 
   const handleApprove = async (bidId: string) => {
     setActionLoading(bidId)
-    setConfirmAction(null)
     setActionError('')
-    try { await bidService.approveBid(bidId); onBidApproved(); onClose() }
-    catch (e: any) { setActionError(e.response?.data?.error || 'Failed to approve bid') }
-    finally { setActionLoading(null) }
+    try {
+      await bidService.approveBid(bidId)
+      onBidApproved()
+      onClose()
+      setConfirmAction(null)
+    } catch (e: any) {
+      setActionError(e.response?.data?.error || 'Failed to approve bid')
+      setConfirmAction(null)
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const handleReject = async (bidId: string) => {
     setActionLoading(bidId)
-    setConfirmAction(null)
     setActionError('')
-    try { await bidService.rejectBid(bidId); loadBids() }
-    catch (e: any) { setActionError(e.response?.data?.error || 'Failed to reject bid') }
-    finally { setActionLoading(null) }
+    try {
+      await bidService.rejectBid(bidId)
+      await loadBids()
+      setConfirmAction(null)
+    } catch (e: any) {
+      setActionError(e.response?.data?.error || 'Failed to reject bid')
+      setConfirmAction(null)
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const isOwner = task && user && task.owner_id === user.id
@@ -254,45 +267,24 @@ export default function ViewBidsModal({ isOpen, task, onClose, onBidApproved }: 
         </div>
       </Modal>
 
-      {/* Inline confirm overlay */}
-      {confirmAction && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setConfirmAction(null)} />
-          <div className="relative bg-white rounded-2xl shadow-4 p-6 w-full max-w-sm animate-scale-in">
-            <div className={cn(
-              'w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4',
-              confirmAction.type === 'approve' ? 'bg-success/10' : 'bg-error/10'
-            )}>
-              {confirmAction.type === 'approve'
-                ? <CheckCircle2 size={22} className="text-success" />
-                : <XCircle size={22} className="text-error" />
-              }
-            </div>
-            <h3 className="text-base font-bold text-text-primary text-center mb-1">
-              {confirmAction.type === 'approve' ? 'Approve this bid?' : 'Reject this bid?'}
-            </h3>
-            <p className="text-sm text-text-secondary text-center mb-6">
-              {confirmAction.type === 'approve'
-                ? 'All other pending bids will be automatically rejected.'
-                : 'The bidder will be notified that their bid was rejected.'
-              }
-            </p>
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setConfirmAction(null)} className="flex-1">Cancel</Button>
-              <Button
-                variant={confirmAction.type === 'approve' ? 'success' : 'danger'}
-                onClick={() => confirmAction.type === 'approve'
-                  ? handleApprove(confirmAction.bidId)
-                  : handleReject(confirmAction.bidId)
-                }
-                className="flex-1"
-              >
-                {confirmAction.type === 'approve' ? 'Yes, Approve' : 'Yes, Reject'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!confirmAction}
+        onClose={() => !actionLoading && setConfirmAction(null)}
+        onConfirm={() => {
+          if (!confirmAction || actionLoading) return
+          confirmAction.type === 'approve'
+            ? handleApprove(confirmAction.bidId)
+            : handleReject(confirmAction.bidId)
+        }}
+        title={confirmAction?.type === 'approve' ? 'Approve this bid?' : 'Reject this bid?'}
+        description={confirmAction?.type === 'approve'
+          ? 'All other pending bids will be automatically rejected. The bidder will be assigned to this task.'
+          : 'The bidder will be notified that their bid was rejected.'
+        }
+        confirmLabel={confirmAction?.type === 'approve' ? 'Yes, Approve' : 'Yes, Reject'}
+        variant={confirmAction?.type === 'approve' ? 'success' : 'danger'}
+        loading={!!actionLoading}
+      />
     </>
   )
 }
