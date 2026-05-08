@@ -52,6 +52,9 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		}
 		return nil, err
 	}
+	if user.Skills == nil {
+		user.Skills = []string{}
+	}
 	return user, nil
 }
 
@@ -75,6 +78,9 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 			return nil, ErrUserNotFound
 		}
 		return nil, err
+	}
+	if user.Skills == nil {
+		user.Skills = []string{}
 	}
 	return user, nil
 }

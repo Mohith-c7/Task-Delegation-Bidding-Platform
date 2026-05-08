@@ -22,9 +22,25 @@ const processQueue = (error: unknown, token: string | null) => {
   failedQueue = []
 }
 
+// Normalize null array fields to [] to prevent .filter()/.map() crashes
+const normalizeArrayFields = (obj: unknown): unknown => {
+  if (Array.isArray(obj)) return obj.map(normalizeArrayFields)
+  if (obj && typeof obj === 'object') {
+    const o = obj as Record<string, unknown>
+    for (const key of ['skills', 'questions', 'task_history', 'bid_history', 'reviews']) {
+      if (key in o && o[key] === null) o[key] = []
+    }
+    for (const val of Object.values(o)) normalizeArrayFields(val)
+  }
+  return obj
+}
+
 // Handle token expiration with auto-refresh
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.data) normalizeArrayFields(response.data)
+    return response
+  },
   async (error) => {
     const original = error.config
 
