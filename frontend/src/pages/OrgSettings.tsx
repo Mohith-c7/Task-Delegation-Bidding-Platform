@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/common/Layout'
 import CreateOrgModal from '../components/common/CreateOrgModal'
-import { Button, Card, Badge, Input, Avatar, ConfirmModal } from '../design-system'
+import { Button, Card, Badge, Input, Avatar, Modal, ConfirmModal } from '../design-system'
 import { useAuthStore } from '../store/authStore'
 import { useRBAC } from '../hooks/useRBAC'
 import { orgService, Member, Invitation, Organization } from '../services/orgService'
