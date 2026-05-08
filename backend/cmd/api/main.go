@@ -145,6 +145,9 @@ func main() {
 
 	router.Use(middleware.RateLimit(redisClient, "ip", 100, time.Minute))
 
+	// Stricter rate limit on auth endpoints
+	authRateLimit := middleware.RateLimit(redisClient, "ip", 10, time.Minute)
+
 	// API routes
 	v1 := router.Group("/api/v1")
 	{
