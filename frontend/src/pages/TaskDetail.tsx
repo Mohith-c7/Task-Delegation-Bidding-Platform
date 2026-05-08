@@ -428,7 +428,6 @@ export default function TaskDetail() {
                       value={reviewComment}
                       onChange={e => setReviewComment(e.target.value)}
                       maxLength={1000}
-                      placeholder="Share what went well, delivery quality, communication, and any useful feedback."
                       className="w-full min-h-24 px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                     />
                     <p className="text-xs text-[var(--color-on-surface-variant)] text-right">{reviewComment.length}/1000</p>
