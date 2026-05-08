@@ -134,18 +134,16 @@ func main() {
 
 	// Global middleware
 	router.Use(middleware.CORSMiddleware(cfg))
-	router.Use(middleware.RateLimit(redisClient, "ip", 100, time.Minute))
 
-	// Stricter rate limit on auth endpoints
-	authRateLimit := middleware.RateLimit(redisClient, "ip", 10, time.Minute)
-
-	// Health check
+	// Health check (exempt from rate limiting)
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"message": "Task Delegation API is running",
 		})
 	})
+
+	router.Use(middleware.RateLimit(redisClient, "ip", 100, time.Minute))
 
 	// API routes
 	v1 := router.Group("/api/v1")
