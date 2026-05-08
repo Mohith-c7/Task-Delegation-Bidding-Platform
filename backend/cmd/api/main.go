@@ -26,10 +26,9 @@ import (
 )
 
 func main() {
-	// Load configuration
+	
 	cfg := config.Load()
 
-	// Connect to database
 	dbPool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal("Unable to connect to database:", err)
@@ -135,7 +134,10 @@ func main() {
 
 	// Global middleware
 	router.Use(middleware.CORSMiddleware(cfg))
-	router.Use(middleware.RateLimit(redisClient, "ip", 100, time.Minute)) // 100 req/min per IP
+	router.Use(middleware.RateLimit(redisClient, "ip", 100, time.Minute))
+
+	// Stricter rate limit on auth endpoints
+	authRateLimit := middleware.RateLimit(redisClient, "ip", 10, time.Minute)
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
@@ -150,6 +152,7 @@ func main() {
 	{
 		// Public routes
 		auth := v1.Group("/auth")
+		auth.Use(authRateLimit)
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
@@ -168,7 +171,7 @@ func main() {
 
 		// Protected routes
 		protected := v1.Group("")
-		protected.Use(middleware.AuthMiddleware(cfg))
+		protected.Use(middleware.AuthMiddleware(cfg, redisClient))
 		{
 			protected.GET("/leaderboard", authHandler.GetLeaderboard)
 			protected.GET("/users/me", authHandler.GetMe)
@@ -216,7 +219,7 @@ func main() {
 			protected.PATCH("/notifications/:id/read", notifHandler.MarkRead)
 			protected.GET("/notifications/stream", notifHandler.Stream)
 
-			// Org routes
+			// Org routes — accept-invitation is public (user is not yet a member)
 			protected.POST("/orgs", orgHandler.CreateOrg)
 			protected.POST("/orgs/accept-invitation", orgHandler.AcceptInvitation)
 

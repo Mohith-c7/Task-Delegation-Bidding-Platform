@@ -35,14 +35,18 @@ func (r *TaskRepository) GetByID(ctx context.Context, id string) (*models.Task, 
 	task := &models.Task{}
 	query := `
 		SELECT t.id, t.title, t.description, t.skills, t.questions, t.deadline, t.priority, t.status, 
-		       COALESCE(t.org_id::text, '') as org_id, t.owner_id, u.name as owner_name, t.assigned_to, t.rating, t.points, t.created_at, t.updated_at
+		       COALESCE(t.org_id::text, '') as org_id, t.owner_id, u.name as owner_name, t.assigned_to,
+		       COALESCE(a.name, '') as assigned_to_name,
+		       t.rating, t.points, t.created_at, t.updated_at
 		FROM tasks t
 		LEFT JOIN users u ON u.id = t.owner_id
+		LEFT JOIN users a ON a.id = t.assigned_to
 		WHERE t.id = $1
 	`
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&task.ID, &task.Title, &task.Description, &task.Skills, &task.Questions, &task.Deadline,
 		&task.Priority, &task.Status, &task.OrgID, &task.OwnerID, &task.OwnerName, &task.AssignedTo,
+		&task.AssignedToName,
 		&task.Rating, &task.Points, &task.CreatedAt, &task.UpdatedAt,
 	)
 	if err != nil {

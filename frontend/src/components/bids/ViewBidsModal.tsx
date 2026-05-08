@@ -25,6 +25,7 @@ export default function ViewBidsModal({ isOpen, task, onClose, onBidApproved }: 
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'reject'; bidId: string } | null>(null)
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     if (isOpen && task) loadBids()
@@ -45,16 +46,18 @@ export default function ViewBidsModal({ isOpen, task, onClose, onBidApproved }: 
   const handleApprove = async (bidId: string) => {
     setActionLoading(bidId)
     setConfirmAction(null)
+    setActionError('')
     try { await bidService.approveBid(bidId); onBidApproved(); onClose() }
-    catch (e: any) { console.error(e) }
+    catch (e: any) { setActionError(e.response?.data?.error || 'Failed to approve bid') }
     finally { setActionLoading(null) }
   }
 
   const handleReject = async (bidId: string) => {
     setActionLoading(bidId)
     setConfirmAction(null)
+    setActionError('')
     try { await bidService.rejectBid(bidId); loadBids() }
-    catch (e: any) { console.error(e) }
+    catch (e: any) { setActionError(e.response?.data?.error || 'Failed to reject bid') }
     finally { setActionLoading(null) }
   }
 
@@ -104,6 +107,13 @@ export default function ViewBidsModal({ isOpen, task, onClose, onBidApproved }: 
             Due {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
         </div>
+
+        {actionError && (
+          <div className="mx-0 mb-4 px-4 py-3 bg-error/8 border border-error/20 rounded-xl text-sm text-error flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-error shrink-0" />
+            {actionError}
+          </div>
+        )}
 
         {/* Bids list */}
         <div className="max-h-[420px] overflow-y-auto -mx-6 px-6">

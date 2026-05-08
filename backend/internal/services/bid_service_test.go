@@ -42,6 +42,10 @@ func (m *mockBidRepo) RejectOtherPendingBids(_ context.Context, _, _, _ string) 
 	m.rejected = true
 	return nil
 }
+func (m *mockBidRepo) ApproveBidTx(_ context.Context, _, _, _, _ string) error {
+	m.rejected = true
+	return nil
+}
 func (m *mockBidRepo) BidExists(_ context.Context, _, _ string) (bool, error) {
 	return m.bidExists, nil
 }

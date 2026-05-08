@@ -51,6 +51,9 @@ export default function OrgSettings() {
     queryKey: ['org', orgID],
     queryFn: () => orgService.getOrg(orgID!),
     enabled: !!orgID,
+    onSuccess: (data) => {
+      if (!editingName) setOrgName(data.name || '')
+    },
   })
 
   // Sync org name to edit state when loaded

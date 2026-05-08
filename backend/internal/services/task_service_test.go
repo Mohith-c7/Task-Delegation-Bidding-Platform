@@ -85,7 +85,7 @@ func TestTransitionStatus_InvalidTransition(t *testing.T) {
 }
 
 func TestTransitionStatus_ValidTransition(t *testing.T) {
-	repo := &mockTaskRepo{task: &models.Task{ID: "task-1", Status: models.StatusOpen}}
+	repo := &mockTaskRepo{task: &models.Task{ID: "task-1", OwnerID: "actor-1", Status: models.StatusOpen}}
 	svc := NewTaskService(repo)
 
 	task, err := svc.TransitionStatus(context.Background(), "task-1", "actor-1", models.StatusAssigned, "")

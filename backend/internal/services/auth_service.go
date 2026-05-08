@@ -75,12 +75,11 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 		return nil, err
 	}
 
-	// Generate tokens
-	accessToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.JWTExpiry)
+	// Generate tokens (no org yet at registration time)
+	accessToken, err := utils.GenerateAccessToken(user.ID, user.Email, "", "", s.config.JWTSecret)
 	if err != nil {
 		return nil, err
 	}
-
 	refreshToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.RefreshTokenExpiry)
 	if err != nil {
 		return nil, err
@@ -94,24 +93,26 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 }
 
 func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*models.AuthResponse, error) {
-	// Get user by email
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, errors.New("invalid email or password")
 	}
-
-	// Check password
 	if !utils.CheckPassword(req.Password, user.PasswordHash) {
 		return nil, errors.New("invalid email or password")
 	}
 
-	// Generate tokens
-	accessToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.JWTExpiry)
+	// Embed org_id + role in JWT so RBAC middleware works
+	orgID, role := "", ""
+	if membership, err := s.userRepo.GetPrimaryMembership(ctx, user.ID); err == nil && membership != nil {
+		orgID = membership.OrgID
+		role = string(membership.Role)
+	}
+
+	accessToken, err := utils.GenerateAccessToken(user.ID, user.Email, orgID, role, s.config.JWTSecret)
 	if err != nil {
 		return nil, err
 	}
-
-	refreshToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.RefreshTokenExpiry)
+	refreshToken, err := utils.GenerateToken(user.ID, user.Email, orgID, s.config.JWTSecret, s.config.RefreshTokenExpiry)
 	if err != nil {
 		return nil, err
 	}
@@ -176,12 +177,11 @@ func (s *AuthService) CompleteRegistration(ctx context.Context, req *models.Regi
 		go s.emailService.SendWelcome(user.Email, user.Name)
 	}
 
-	// Generate tokens
-	accessToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.JWTExpiry)
+	// Generate tokens (no org at registration time)
+	accessToken, err := utils.GenerateAccessToken(user.ID, user.Email, "", "", s.config.JWTSecret)
 	if err != nil {
 		return nil, err
 	}
-
 	refreshToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.RefreshTokenExpiry)
 	if err != nil {
 		return nil, err
@@ -226,13 +226,18 @@ func (s *AuthService) CompleteOTPLogin(ctx context.Context, email string) (*mode
 		return nil, errors.New("user not found")
 	}
 
-	// Generate tokens
-	accessToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.JWTExpiry)
+	// Embed org membership in token
+	orgID, role := "", ""
+	if membership, err := s.userRepo.GetPrimaryMembership(ctx, user.ID); err == nil && membership != nil {
+		orgID = membership.OrgID
+		role = string(membership.Role)
+	}
+
+	accessToken, err := utils.GenerateAccessToken(user.ID, user.Email, orgID, role, s.config.JWTSecret)
 	if err != nil {
 		return nil, err
 	}
-
-	refreshToken, err := utils.GenerateToken(user.ID, user.Email, "", s.config.JWTSecret, s.config.RefreshTokenExpiry)
+	refreshToken, err := utils.GenerateToken(user.ID, user.Email, orgID, s.config.JWTSecret, s.config.RefreshTokenExpiry)
 	if err != nil {
 		return nil, err
 	}
@@ -423,4 +428,54 @@ func (s *AuthService) IsTokenInvalidated(ctx context.Context, userID string) boo
 
 func (s *AuthService) GetLeaderboard(ctx context.Context) ([]*models.LeaderboardUser, error) {
 	return s.userRepo.GetLeaderboard(ctx)
+}
+
+// InitiatePasswordReset sends an OTP for password reset if the email exists.
+func (s *AuthService) InitiatePasswordReset(ctx context.Context, email string) error {
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		return nil // swallow — don't reveal whether email exists
+	}
+	if s.otpService != nil {
+		return s.otpService.SendOTP(ctx, email, user.Name, string(models.OTPPurposePasswordReset))
+	}
+	// Fallback: Redis-backed token
+	token, err := s.GeneratePasswordResetToken(ctx, email)
+	if err != nil {
+		return err
+	}
+	if s.emailService != nil {
+		go s.emailService.SendOTP(email, user.Name, token, string(models.OTPPurposePasswordReset))
+	}
+	return nil
+}
+
+// VerifyOTPAndRegister verifies the OTP then creates the account atomically.
+func (s *AuthService) VerifyOTPAndRegister(ctx context.Context, name, email, password, otp string) (*models.AuthResponse, error) {
+	if s.otpService == nil {
+		return nil, errors.New("OTP service unavailable")
+	}
+	ok, err := s.otpService.VerifyOTP(ctx, email, otp, string(models.OTPPurposeEmailVerification))
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("invalid or expired OTP")
+	}
+
+	// Check email not already registered
+	exists, err := s.userRepo.EmailExists(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, errors.New("email already registered")
+	}
+
+	return s.CompleteRegistration(ctx, &models.RegisterRequest{Name: name, Email: email, Password: password})
+}
+
+// GetPrimaryMembership exposes the user repo method for use in handlers.
+func (s *AuthService) GetPrimaryMembership(ctx context.Context, userID string) (*models.Membership, error) {
+	return s.userRepo.GetPrimaryMembership(ctx, userID)
 }

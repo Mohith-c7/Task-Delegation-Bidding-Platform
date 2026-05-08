@@ -163,6 +163,13 @@ func (s *OrgService) AcceptInvitation(ctx context.Context, token, userID string)
 		return nil, ErrEmailMismatch
 	}
 
+	// Check member limit before accepting
+	if s.billingService != nil {
+		if err := s.billingService.CheckMemberLimit(ctx, inv.OrgID); err != nil {
+			return nil, err
+		}
+	}
+
 	membership := &models.Membership{
 		OrgID:  inv.OrgID,
 		UserID: userID,

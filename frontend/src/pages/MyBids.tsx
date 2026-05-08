@@ -28,9 +28,10 @@ export default function MyBids() {
     try {
       setLoading(true)
       const data = await bidService.getMyBids()
-      setBids(data)
+      setBids(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Failed to load bids:', error)
+      setBids([])
     } finally {
       setLoading(false)
     }

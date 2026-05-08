@@ -30,6 +30,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/" />
 }
 
+// Clear any stale auth state if access_token is missing but other keys linger
+const accessToken = localStorage.getItem('access_token')
+if (!accessToken) {
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('user')
+  localStorage.removeItem('org_id')
+  localStorage.removeItem('org_role')
+  localStorage.removeItem('subscription_tier')
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>

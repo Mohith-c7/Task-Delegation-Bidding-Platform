@@ -13,6 +13,7 @@ const (
 type Bid struct {
 	ID                  string            `json:"id"`
 	TaskID              string            `json:"task_id"`
+	TaskTitle           string            `json:"task_title,omitempty"`
 	BidderID            string            `json:"bidder_id"`
 	Message             string            `json:"message"`
 	EstimatedCompletion time.Time         `json:"estimated_completion"`

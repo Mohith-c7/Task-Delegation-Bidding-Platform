@@ -20,9 +20,19 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// GenerateToken creates a new JWT token (legacy — keeps existing callers working)
-func GenerateToken(userID, email, role, secret string, expiry time.Duration) (string, error) {
-	return GenerateAccessToken(userID, email, "", role, secret)
+// GenerateToken creates a new JWT token with org and role claims
+func GenerateToken(userID, email, orgID, secret string, expiry time.Duration) (string, error) {
+	claims := Claims{
+		UserID: userID,
+		Email:  email,
+		OrgID:  orgID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
 }
 
 // GenerateAccessToken creates a 15-min access token with org/role claims

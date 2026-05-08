@@ -27,6 +27,13 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
+
+    // Never attempt refresh for auth endpoints — avoids infinite loops
+    const isAuthEndpoint = original?.url?.includes('/auth/')
+    if (isAuthEndpoint) {
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401 && !original._retry) {
       const refreshToken = localStorage.getItem('refresh_token')
       if (!refreshToken) {

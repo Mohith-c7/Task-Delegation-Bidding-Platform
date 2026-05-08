@@ -88,10 +88,13 @@ func (r *BidRepository) GetByTaskID(ctx context.Context, taskID string) ([]*mode
 
 func (r *BidRepository) GetByBidderID(ctx context.Context, bidderID string) ([]*models.Bid, error) {
 	query := `
-		SELECT id, task_id, bidder_id, message, estimated_completion,
-		       status, answers, approved_by, created_at, updated_at
-		FROM bids WHERE bidder_id = $1
-		ORDER BY created_at DESC
+		SELECT b.id, b.task_id, b.bidder_id, b.message, b.estimated_completion,
+		       b.status, b.answers, b.approved_by, b.created_at, b.updated_at,
+		       COALESCE(t.title, '') AS task_title
+		FROM bids b
+		LEFT JOIN tasks t ON t.id = b.task_id
+		WHERE b.bidder_id = $1
+		ORDER BY b.created_at DESC
 	`
 	rows, err := r.db.Query(ctx, query, bidderID)
 	if err != nil {
@@ -105,6 +108,7 @@ func (r *BidRepository) GetByBidderID(ctx context.Context, bidderID string) ([]*
 		err := rows.Scan(
 			&bid.ID, &bid.TaskID, &bid.BidderID, &bid.Message, &bid.EstimatedCompletion,
 			&bid.Status, &bid.Answers, &bid.ApprovedBy, &bid.CreatedAt, &bid.UpdatedAt,
+			&bid.TaskTitle,
 		)
 		if err != nil {
 			return nil, err
@@ -145,4 +149,52 @@ func (r *BidRepository) BidExists(ctx context.Context, taskID, bidderID string) 
 	query := `SELECT EXISTS(SELECT 1 FROM bids WHERE task_id = $1 AND bidder_id = $2)`
 	err := r.db.QueryRow(ctx, query, taskID, bidderID).Scan(&exists)
 	return exists, err
+}
+
+// ApproveBidTx atomically approves one bid and rejects all other pending bids
+// for the same task, then assigns the task — all inside a single transaction.
+func (r *BidRepository) ApproveBidTx(ctx context.Context, bidID, taskID, approverID, bidderID string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Lock the task row to prevent concurrent approvals
+	var currentStatus string
+	if err := tx.QueryRow(ctx,
+		`SELECT status FROM tasks WHERE id = $1 FOR UPDATE`, taskID,
+	).Scan(&currentStatus); err != nil {
+		return err
+	}
+	if currentStatus != "open" {
+		return errors.New("task is no longer open for bid approval")
+	}
+
+	// Approve the selected bid
+	if _, err := tx.Exec(ctx,
+		`UPDATE bids SET status = 'approved', approved_by = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending'`,
+		approverID, bidID,
+	); err != nil {
+		return err
+	}
+
+	// Reject all other pending bids for this task
+	if _, err := tx.Exec(ctx,
+		`UPDATE bids SET status = 'rejected', approved_by = $1, updated_at = NOW()
+		 WHERE task_id = $2 AND id <> $3 AND status = 'pending'`,
+		approverID, taskID, bidID,
+	); err != nil {
+		return err
+	}
+
+	// Assign task to bidder
+	if _, err := tx.Exec(ctx,
+		`UPDATE tasks SET status = 'assigned', assigned_to = $1, updated_at = NOW() WHERE id = $2`,
+		bidderID, taskID,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }

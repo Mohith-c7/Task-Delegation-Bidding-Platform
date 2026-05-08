@@ -16,7 +16,7 @@ import { cn } from '../design-system/utils'
 interface TaskDetailData {
   id: string; title: string; description: string; skills: string[]
   deadline: string; priority: string; status: string
-  owner_id: string; owner_name: string; assigned_to?: string; org_id?: string
+  owner_id: string; owner_name: string; assigned_to?: string; assigned_to_name?: string; org_id?: string
   rating?: number; points?: number
   created_at: string; updated_at: string
   activity: Array<{ id: string; event_type: string; field_name?: string; old_value?: string; new_value?: string; actor_name?: string; created_at: string }>
@@ -474,7 +474,7 @@ export default function TaskDetail() {
                     onClick={() => navigate(`/profile/${task.assigned_to}`)}
                     className="text-[var(--color-primary)] font-medium truncate hover:underline"
                   >
-                    {task.assigned_to}
+                    {task.assigned_to_name || task.assigned_to}
                   </button>
                 </div>
               )}

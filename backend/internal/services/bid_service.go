@@ -26,6 +26,7 @@ type bidRepository interface {
 	UpdateStatus(ctx context.Context, id string, status models.BidStatus, approvedBy *string) error
 	RejectOtherPendingBids(ctx context.Context, taskID, approvedBidID, approvedBy string) error
 	BidExists(ctx context.Context, taskID, bidderID string) (bool, error)
+	ApproveBidTx(ctx context.Context, bidID, taskID, approverID, bidderID string) error
 }
 
 type bidTaskRepository interface {
@@ -175,35 +176,25 @@ func (s *BidService) GetMyBids(ctx context.Context, bidderID string) ([]*models.
 }
 
 func (s *BidService) ApproveBid(ctx context.Context, bidID string, approverID string) error {
-	// Get bid
+	// Get bid details first (outside transaction — read-only)
 	bid, err := s.bidRepo.GetByID(ctx, bidID)
 	if err != nil {
 		return err
 	}
-
-	// Check if bid is pending
 	if bid.Status != models.BidPending {
 		return errors.New("bid is not pending")
 	}
 
-	// Get task
 	task, err := s.taskRepo.GetByID(ctx, bid.TaskID)
 	if err != nil {
 		return err
 	}
-
-	// Check if approver is the task owner
 	if task.OwnerID != approverID {
 		return errors.New("only task owner can approve bids")
 	}
 
-	// Update bid status
-	if err := s.bidRepo.UpdateStatus(ctx, bidID, models.BidApproved, &approverID); err != nil {
-		return err
-	}
-
-	// Reject any remaining pending bids for this task.
-	if err := s.bidRepo.RejectOtherPendingBids(ctx, bid.TaskID, bidID, approverID); err != nil {
+	// Atomically approve bid, reject others, assign task — prevents race conditions
+	if err := s.bidRepo.ApproveBidTx(ctx, bidID, bid.TaskID, approverID, bid.BidderID); err != nil {
 		return err
 	}
 
@@ -259,7 +250,6 @@ func (s *BidService) ApproveBid(ctx context.Context, bidID string, approverID st
 		})
 	}
 
-	// Email notification to bidder
 	if s.emailService != nil {
 		bidder, err := s.userRepo.GetByID(ctx, bid.BidderID)
 		if err == nil {

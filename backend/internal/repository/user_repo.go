@@ -435,3 +435,28 @@ func (r *UserRepository) HasUnavailableWindow(ctx context.Context, userID string
 	`, userID, start, end).Scan(&exists)
 	return exists, err
 }
+
+// GetPrimaryMembership returns the highest-priority org membership for a user.
+// Used to embed org_id + role into JWT at login time.
+func (r *UserRepository) GetPrimaryMembership(ctx context.Context, userID string) (*models.Membership, error) {
+	m := &models.Membership{}
+	err := r.db.QueryRow(ctx, `
+		SELECT id, org_id::text, user_id::text, role, created_at, updated_at
+		FROM memberships
+		WHERE user_id = $1
+		ORDER BY CASE role
+			WHEN 'org_admin' THEN 1
+			WHEN 'manager'   THEN 2
+			WHEN 'employee'  THEN 3
+			ELSE 4
+		END
+		LIMIT 1
+	`, userID).Scan(&m.ID, &m.OrgID, &m.UserID, &m.Role, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil // no membership — not an error
+		}
+		return nil, err
+	}
+	return m, nil
+}

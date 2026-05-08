@@ -12,10 +12,14 @@ import { useToast } from '../design-system'
 import { Plus, ClipboardList, CheckCircle2, Clock3, Circle } from 'lucide-react'
 
 const STATUS_SECTIONS = [
-  { key: 'open',        label: 'Open',        color: 'text-success',  dot: 'bg-success' },
-  { key: 'assigned',    label: 'Assigned',    color: 'text-warning',  dot: 'bg-warning' },
-  { key: 'in_progress', label: 'In Progress', color: 'text-primary',  dot: 'bg-primary' },
-  { key: 'completed',   label: 'Completed',   color: 'text-secondary', dot: 'bg-secondary' },
+  { key: 'open',                  label: 'Open',               color: 'text-success',   dot: 'bg-success' },
+  { key: 'assigned',              label: 'Assigned',           color: 'text-warning',   dot: 'bg-warning' },
+  { key: 'in_progress',           label: 'In Progress',        color: 'text-primary',   dot: 'bg-primary' },
+  { key: 'submitted_for_review',  label: 'Under Review',       color: 'text-info',      dot: 'bg-info' },
+  { key: 'revision_requested',    label: 'Revision Requested', color: 'text-warning',   dot: 'bg-warning' },
+  { key: 'disputed',              label: 'Disputed',           color: 'text-error',     dot: 'bg-error' },
+  { key: 'completed',             label: 'Completed',          color: 'text-secondary', dot: 'bg-secondary' },
+  { key: 'closed',                label: 'Closed',             color: 'text-text-tertiary', dot: 'bg-text-tertiary' },
 ] as const
 
 export default function MyTasks() {

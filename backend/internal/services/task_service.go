@@ -190,6 +190,25 @@ func (s *TaskService) TransitionStatus(ctx context.Context, taskID, actorID stri
 		return nil, err
 	}
 
+	isOwner := task.OwnerID == actorID
+	isAssignee := task.AssignedTo != nil && *task.AssignedTo == actorID
+
+	// Enforce who can trigger which transitions
+	switch newStatus {
+	case models.StatusInProgress, models.StatusSubmitted:
+		if !isAssignee {
+			return nil, errors.New("only the assigned user can perform this transition")
+		}
+	case models.StatusCompleted, models.StatusRevision, models.StatusDisputed, models.StatusClosed:
+		if !isOwner {
+			return nil, errors.New("only the task owner can perform this transition")
+		}
+	case models.StatusAssigned:
+		if !isOwner {
+			return nil, errors.New("only the task owner can assign a task")
+		}
+	}
+
 	if newStatus == models.StatusRevision || newStatus == models.StatusDisputed {
 		if strings.TrimSpace(reason) == "" {
 			return nil, errors.New("reason is required for revision or dispute")

@@ -24,22 +24,23 @@ const (
 )
 
 type Task struct {
-	ID          string       `json:"id"`
-	Title       string       `json:"title"`
-	Description string       `json:"description"`
-	Skills      []string     `json:"skills"`
-	Questions   []string     `json:"questions"`
-	Deadline    time.Time    `json:"deadline"`
-	Priority    TaskPriority `json:"priority"`
-	Status      TaskStatus   `json:"status"`
-	OrgID       string       `json:"org_id,omitempty"`
-	OwnerID     string       `json:"owner_id"`
-	OwnerName   string       `json:"owner_name"`
-	AssignedTo  *string      `json:"assigned_to"`
-	Rating      *int         `json:"rating,omitempty"`
-	Points      *int         `json:"points,omitempty"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
+	ID             string       `json:"id"`
+	Title          string       `json:"title"`
+	Description    string       `json:"description"`
+	Skills         []string     `json:"skills"`
+	Questions      []string     `json:"questions"`
+	Deadline       time.Time    `json:"deadline"`
+	Priority       TaskPriority `json:"priority"`
+	Status         TaskStatus   `json:"status"`
+	OrgID          string       `json:"org_id,omitempty"`
+	OwnerID        string       `json:"owner_id"`
+	OwnerName      string       `json:"owner_name"`
+	AssignedTo     *string      `json:"assigned_to"`
+	AssignedToName string       `json:"assigned_to_name,omitempty"`
+	Rating         *int         `json:"rating,omitempty"`
+	Points         *int         `json:"points,omitempty"`
+	CreatedAt      time.Time    `json:"created_at"`
+	UpdatedAt      time.Time    `json:"updated_at"`
 }
 
 type CreateTaskRequest struct {
@@ -75,7 +76,7 @@ type TaskDetail struct {
 var AllowedTransitions = map[TaskStatus][]TaskStatus{
 	StatusOpen:       {StatusAssigned, StatusClosed},
 	StatusAssigned:   {StatusInProgress},
-	StatusInProgress: {StatusSubmitted, StatusCompleted},
+	StatusInProgress: {StatusSubmitted},
 	StatusSubmitted:  {StatusCompleted, StatusRevision, StatusDisputed},
 	StatusRevision:   {StatusSubmitted, StatusDisputed},
 	StatusDisputed:   {StatusRevision, StatusClosed},

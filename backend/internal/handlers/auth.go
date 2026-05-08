@@ -118,17 +118,8 @@ func (h *AuthHandler) VerifyEmailAndRegister(c *gin.Context) {
 		return
 	}
 
-	// Note: OTP verification should be done via OTPHandler first
-	// This endpoint assumes OTP is already verified
-	// In production, implement proper flow with session management
-
-	regReq := &models.RegisterRequest{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: req.Password,
-	}
-
-	response, err := h.authService.CompleteRegistration(c.Request.Context(), regReq)
+	// Verify OTP before creating account
+	response, err := h.authService.VerifyOTPAndRegister(c.Request.Context(), req.Name, req.Email, req.Password, req.OTP)
 	if err != nil {
 		utils.ErrorResponse(c, 400, err.Error())
 		return
@@ -137,30 +128,22 @@ func (h *AuthHandler) VerifyEmailAndRegister(c *gin.Context) {
 	utils.SuccessResponse(c, 201, "Registration completed successfully", response)
 }
 
-// ForgotPassword initiates password reset
-// @Summary Start password reset
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body object true "Forgot password request"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Router /auth/forgot-password [post]
+// ForgotPassword initiates password reset via OTP
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
 	}
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, 400, err.Error())
 		return
 	}
 
-	// Send OTP via OTPService (handled by OTPHandler)
-	// This is just a placeholder endpoint
-	utils.SuccessResponse(c, 200, "Password reset OTP sent", gin.H{
-		"message": "If the email exists, an OTP has been sent",
-		"email":   req.Email,
+	// Always return success to avoid email enumeration
+	// Actual OTP sending happens inside — errors are swallowed intentionally
+	_ = h.authService.InitiatePasswordReset(c.Request.Context(), req.Email)
+
+	utils.SuccessResponse(c, 200, "If that email exists, a reset code has been sent", gin.H{
+		"email": req.Email,
 	})
 }
 
@@ -281,15 +264,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "Logged out successfully", nil)
 }
 
-// RefreshToken issues a new access token from a valid refresh token.
-// @Summary Refresh access token
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body object true "Refresh token request"
-// @Success 200 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Router /auth/refresh [post]
+// RefreshToken issues a new access token AND a new refresh token from a valid refresh token.
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -305,14 +280,35 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// Issue new access token (preserve org_id + role from refresh token claims)
-	accessToken, err := utils.GenerateAccessToken(claims.UserID, claims.Email, claims.OrgID, claims.Role, h.authService.Config().JWTSecret)
-	if err != nil {
-		utils.ErrorResponse(c, 500, "Failed to generate token")
+	// Check if tokens were invalidated (e.g. after logout)
+	if h.authService.IsTokenInvalidated(c.Request.Context(), claims.UserID) {
+		utils.ErrorResponse(c, 401, "Session expired, please log in again")
 		return
 	}
 
-	utils.SuccessResponse(c, 200, "Token refreshed", gin.H{"access_token": accessToken})
+	// Re-fetch org membership so the new token has fresh org_id + role
+	orgID, role := claims.OrgID, claims.Role
+	if membership, err := h.authService.GetPrimaryMembership(c.Request.Context(), claims.UserID); err == nil && membership != nil {
+		orgID = membership.OrgID
+		role = string(membership.Role)
+	}
+
+	accessToken, err := utils.GenerateAccessToken(claims.UserID, claims.Email, orgID, role, h.authService.Config().JWTSecret)
+	if err != nil {
+		utils.ErrorResponse(c, 500, "Failed to generate access token")
+		return
+	}
+
+	newRefreshToken, err := utils.GenerateToken(claims.UserID, claims.Email, orgID, h.authService.Config().JWTSecret, h.authService.Config().RefreshTokenExpiry)
+	if err != nil {
+		utils.ErrorResponse(c, 500, "Failed to generate refresh token")
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "Token refreshed", gin.H{
+		"access_token":  accessToken,
+		"refresh_token": newRefreshToken,
+	})
 }
 
 // GetMyProfile returns the complete profile of the authenticated user.

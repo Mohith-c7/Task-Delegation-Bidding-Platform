@@ -11,12 +11,18 @@ export function useSSE() {
   const esRef = useRef<EventSource | null>(null)
   const retryDelay = useRef(1000)
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stopped = useRef(false)
 
   useEffect(() => {
     if (!token) return
+    stopped.current = false
+    retryDelay.current = 1000
 
     const connect = () => {
-      const url = `${BASE_URL}/notifications/stream?token=${token}`
+      if (stopped.current) return
+
+      // Token passed as query param — EventSource doesn't support custom headers
+      const url = `${BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`
       const es = new EventSource(url)
       esRef.current = es
 
@@ -24,7 +30,7 @@ export function useSSE() {
         try {
           const notif: Notification = JSON.parse(e.data)
           addNotification(notif)
-          retryDelay.current = 1000 // reset on success
+          retryDelay.current = 1000 // reset backoff on success
         } catch {
           // ignore parse errors
         }
@@ -33,12 +39,10 @@ export function useSSE() {
       es.onerror = () => {
         es.close()
         esRef.current = null
-        // If we get a 401-like failure on first connect, the token is invalid — stop retrying
-        // Exponential backoff: 1s → 2s → 4s → ... → 30s max
-        const delay = Math.min(retryDelay.current, 30000)
+        if (stopped.current) return
+        // Exponential backoff capped at 30s — always retry (network may recover)
+        const delay = retryDelay.current
         retryDelay.current = Math.min(delay * 2, 30000)
-        // Cap retries — if token is bad, don't hammer the server
-        if (retryDelay.current >= 30000) return
         retryTimer.current = setTimeout(connect, delay)
       }
     }
@@ -46,6 +50,7 @@ export function useSSE() {
     connect()
 
     return () => {
+      stopped.current = true
       esRef.current?.close()
       if (retryTimer.current) clearTimeout(retryTimer.current)
     }
