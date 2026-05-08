@@ -3,8 +3,11 @@ package handlers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/yourusername/task-delegation-platform/internal/models"
+	"github.com/yourusername/task-delegation-platform/internal/repository"
 	"github.com/yourusername/task-delegation-platform/internal/services"
 	"github.com/yourusername/task-delegation-platform/internal/utils"
+	"net/http"
+	"strings"
 )
 
 type AuthHandler struct {
@@ -52,7 +55,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// Original flow without OTP
 	response, err := h.authService.Register(c.Request.Context(), &req)
 	if err != nil {
-		utils.ErrorResponse(c, 400, err.Error())
+		// Treat validation/expected conflicts as 400; bubble up DB errors as 500.
+		if strings.Contains(err.Error(), "email already registered") {
+			utils.ErrorResponse(c, http.StatusBadRequest, err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "invalid") {
+			utils.ErrorResponse(c, http.StatusBadRequest, err.Error())
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -77,7 +89,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	response, err := h.authService.Login(c.Request.Context(), &req)
 	if err != nil {
-		utils.ErrorResponse(c, 401, err.Error())
+		if err.Error() == "invalid email or password" || err.Error() == repository.ErrUserNotFound.Error() {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "invalid email or password")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 

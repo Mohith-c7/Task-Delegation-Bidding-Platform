@@ -11,6 +11,8 @@ import (
 	"github.com/yourusername/task-delegation-platform/internal/models"
 )
 
+var ErrUserNotFound = errors.New("user not found")
+
 type UserRepository struct {
 	db *pgxpool.Pool
 }
@@ -46,7 +48,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("user not found")
+			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -70,7 +72,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("user not found")
+			return nil, ErrUserNotFound
 		}
 		return nil, err
 	}

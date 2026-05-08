@@ -95,7 +95,11 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*models.AuthResponse, error) {
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
-		return nil, errors.New("invalid email or password")
+		// Only treat "not found" as invalid credentials; bubble up real DB errors.
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, errors.New("invalid email or password")
+		}
+		return nil, err
 	}
 	if !utils.CheckPassword(req.Password, user.PasswordHash) {
 		return nil, errors.New("invalid email or password")
