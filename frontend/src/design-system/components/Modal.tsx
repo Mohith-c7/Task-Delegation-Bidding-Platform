@@ -74,11 +74,9 @@ export const Modal: React.FC<ModalProps> = ({
           {(title || !hideClose) && (
             <div className="flex items-start justify-between p-6 pb-4">
               <div className="flex-1 min-w-0 pr-4">
-                {title && (
-                  <Dialog.Title className="text-lg font-semibold text-text-primary">
-                    {title}
-                  </Dialog.Title>
-                )}
+                <Dialog.Title className={cn("text-lg font-semibold text-text-primary", !title && "sr-only")}>
+                  {title || 'Modal'}
+                </Dialog.Title>
                 {description && (
                   <Dialog.Description className="text-sm text-text-secondary mt-1">
                     {description}

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -168,7 +169,7 @@ func (r *BidRepository) ApproveBidTx(ctx context.Context, bidID, taskID, approve
 		return err
 	}
 	if currentStatus != "open" {
-		return errors.New("task is no longer open for bid approval")
+		return fmt.Errorf("task is no longer open for bid approval (current status: %s)", currentStatus)
 	}
 
 	// Approve the selected bid

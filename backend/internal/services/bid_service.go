@@ -194,19 +194,13 @@ func (s *BidService) ApproveBid(ctx context.Context, bidID string, approverID st
 	}
 
 	// Atomically approve bid, reject others, assign task — prevents race conditions
-	if err := s.bidRepo.ApproveBidTx(ctx, bidID, bid.TaskID, approverID, bid.BidderID); err != nil {
-		return err
-	}
-
-	// Update task status and assign to bidder
 	oldStatus := string(task.Status)
 	oldAssignee := ""
 	if task.AssignedTo != nil {
 		oldAssignee = *task.AssignedTo
 	}
-	task.Status = models.StatusAssigned
-	task.AssignedTo = &bid.BidderID
-	if err := s.taskRepo.Update(ctx, task.ID, task); err != nil {
+
+	if err := s.bidRepo.ApproveBidTx(ctx, bidID, bid.TaskID, approverID, bid.BidderID); err != nil {
 		return err
 	}
 
