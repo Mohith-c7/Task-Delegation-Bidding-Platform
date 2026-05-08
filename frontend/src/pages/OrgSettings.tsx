@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Users, Mail, CreditCard, Shield, UserMinus, Send, X,
@@ -51,13 +51,14 @@ export default function OrgSettings() {
     queryKey: ['org', orgID],
     queryFn: () => orgService.getOrg(orgID!),
     enabled: !!orgID,
-    onSuccess: (data) => {
-      if (!editingName) setOrgName(data.name || '')
-    },
   })
 
   // Sync org name to edit state when loaded
-  const orgData = org as Organization | undefined
+  useEffect(() => {
+    if (org && !editingName) {
+      setOrgName(org.name || '')
+    }
+  }, [org, editingName])
 
   const { data: members = [], isLoading: loadingMembers } = useQuery<Member[]>({
     queryKey: ['members', orgID],
@@ -163,10 +164,10 @@ export default function OrgSettings() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white text-xl font-bold shadow-2">
-              {orgData?.name?.[0]?.toUpperCase() || 'O'}
+              {org?.name?.[0]?.toUpperCase() || 'O'}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-text-primary">{orgData?.name || 'Organization'}</h1>
+              <h1 className="text-2xl font-bold text-text-primary">{org?.name || 'Organization'}</h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', tierMeta.bg, tierMeta.color)}>
                   {tierMeta.label} Plan
@@ -241,29 +242,29 @@ export default function OrgSettings() {
                     <div className="flex gap-2">
                       <Input value={orgName} onChange={e => setOrgName(e.target.value)} className="flex-1" />
                       <Button size="sm" onClick={() => updateOrg.mutate()} loading={updateOrg.isPending}>Save</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setEditingName(false); setOrgName(orgData?.name || '') }}>Cancel</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingName(false); setOrgName(org?.name || '') }}>Cancel</Button>
                     </div>
                   ) : (
-                    <p className="text-sm text-text-primary font-medium">{orgData?.name}</p>
+                    <p className="text-sm text-text-primary font-medium">{org?.name}</p>
                   )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-text-secondary mb-1.5 block">Slug</label>
                   <div className="flex items-center gap-2">
-                    <code className="text-sm text-text-secondary bg-surface-3 px-3 py-1.5 rounded-lg border border-border">{orgData?.slug}</code>
+                    <code className="text-sm text-text-secondary bg-surface-3 px-3 py-1.5 rounded-lg border border-border">{org?.slug}</code>
                   </div>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-text-secondary mb-1.5 block">Created</label>
-                  <p className="text-sm text-text-primary">{orgData?.created_at ? new Date(orgData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</p>
+                  <p className="text-sm text-text-primary">{org?.created_at ? new Date(org.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</p>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-text-secondary mb-1.5 block">Onboarding Status</label>
                   <div className="flex items-center gap-2">
-                    {orgData?.onboarding_status === 'complete' ? (
+                    {org?.onboarding_status === 'complete' ? (
                       <span className="flex items-center gap-1.5 text-sm text-success"><CheckCircle2 size={14} /> Complete</span>
                     ) : (
-                      <span className="flex items-center gap-1.5 text-sm text-warning"><AlertCircle size={14} /> {orgData?.onboarding_status || 'Incomplete'}</span>
+                      <span className="flex items-center gap-1.5 text-sm text-warning"><AlertCircle size={14} /> {org?.onboarding_status || 'Incomplete'}</span>
                     )}
                   </div>
                 </div>
