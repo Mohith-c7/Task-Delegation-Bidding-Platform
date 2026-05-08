@@ -518,7 +518,7 @@ func (r *TaskRepository) RateTask(ctx context.Context, taskID string, rating, po
 		return errors.New("task already rated")
 	}
 
-	_, err = tx.Exec(ctx, `UPDATE tasks SET rating = $1, points = $2 WHERE id = $3`, rating, points, taskID)
+	_, err = tx.Exec(ctx, `UPDATE tasks SET rating = $1, points = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`, rating, points, taskID)
 	if err != nil {
 		return err
 	}

@@ -232,6 +232,7 @@ func (s *TaskService) TransitionStatus(ctx context.Context, taskID, actorID stri
 
 	oldStatus := string(task.Status)
 	task.Status = newStatus
+	task.UpdatedAt = time.Now()
 	if err := s.taskRepo.Update(ctx, taskID, task); err != nil {
 		return nil, err
 	}

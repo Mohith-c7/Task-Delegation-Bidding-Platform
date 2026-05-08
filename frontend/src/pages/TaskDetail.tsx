@@ -7,11 +7,12 @@ import {
 } from 'lucide-react'
 import api from '../services/api'
 import Layout from '../components/common/Layout'
-import { Badge, Button, Card, Skeleton } from '../design-system'
+import { Badge, Button, Card, Skeleton, Textarea, Input } from '../design-system'
 import { useRBAC } from '../hooks/useRBAC'
 import { useAuthStore } from '../store/authStore'
 import { taskService } from '../services/taskService'
 import { cn } from '../design-system/utils'
+import { useToast } from '../design-system'
 
 interface TaskDetailData {
   id: string; title: string; description: string; skills: string[]
@@ -59,6 +60,7 @@ export default function TaskDetail() {
   const qc = useQueryClient()
   useRBAC()
   const { user } = useAuthStore()
+  const { success, error: toastError } = useToast()
   const [comment, setComment] = useState('')
   const [activeTab, setActiveTab] = useState<'activity' | 'comments' | 'checklist'>('activity')
   const [rating, setRating] = useState(0)
@@ -83,8 +85,12 @@ export default function TaskDetail() {
     mutationFn: ({ status, reason }: { status: string, reason?: string }) => api.patch(`/tasks/${id}/status`, { status, reason }),
     onSuccess: () => {
       setReviewReason('')
+      success('Status updated successfully')
       qc.invalidateQueries({ queryKey: ['task-detail', id] })
     },
+    onError: (err: any) => {
+      toastError('Failed to update status', err.response?.data?.error || err.message)
+    }
   })
 
   const commentMutation = useMutation({
@@ -93,11 +99,20 @@ export default function TaskDetail() {
       setComment('')
       qc.invalidateQueries({ queryKey: ['task-detail', id] })
     },
+    onError: (err: any) => {
+      toastError('Failed to add comment', err.response?.data?.error || err.message)
+    }
   })
 
   const checklistMutation = useMutation({
     mutationFn: (items: TaskDetailData['checklist']) => api.put(`/tasks/${id}/checklist`, { items }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['task-detail', id] }),
+    onSuccess: () => {
+      success('Checklist updated')
+      qc.invalidateQueries({ queryKey: ['task-detail', id] })
+    },
+    onError: (err: any) => {
+      toastError('Failed to update checklist', err.response?.data?.error || err.message)
+    }
   })
 
   const reviewMutation = useMutation({
@@ -105,10 +120,15 @@ export default function TaskDetail() {
       taskService.createReview(id!, { rating, points, comment }),
     onSuccess: () => {
       setReviewComment('')
+      setRating(0)
+      success('Review submitted successfully', 'Thank you for your feedback!')
       qc.invalidateQueries({ queryKey: ['task-detail', id] })
       qc.invalidateQueries({ queryKey: ['myProfile'] })
       qc.invalidateQueries({ queryKey: ['publicProfile'] })
     },
+    onError: (err: any) => {
+      toastError('Failed to submit review', err.response?.data?.error || err.message)
+    }
   })
 
   const submissionMutation = useMutation({
@@ -123,8 +143,12 @@ export default function TaskDetail() {
       setPrUrl('')
       setDemoUrl('')
       setAttachmentUrl('')
+      success('Completion evidence submitted')
       qc.invalidateQueries({ queryKey: ['task-detail', id] })
     },
+    onError: (err: any) => {
+      toastError('Failed to submit evidence', err.response?.data?.error || err.message)
+    }
   })
 
   const toggleChecklist = (itemId: string) => {
@@ -233,12 +257,11 @@ export default function TaskDetail() {
                       </div>
                     ))}
                     <div className="flex gap-2 mt-4">
-                      <input
+                      <Input
                         value={comment}
                         onChange={e => setComment(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && !e.shiftKey && comment.trim() && commentMutation.mutate(comment.trim())}
                         placeholder="Add a comment..."
-                        className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                       />
                       <Button
                         size="sm"
@@ -334,9 +357,9 @@ export default function TaskDetail() {
                     placeholder="Summarize what was completed, how it was verified, and any handoff notes."
                     className="w-full min-h-28 px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                   />
-                  <input value={prUrl} onChange={e => setPrUrl(e.target.value)} placeholder="PR URL" className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm" />
-                  <input value={demoUrl} onChange={e => setDemoUrl(e.target.value)} placeholder="Demo URL" className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm" />
-                  <input value={attachmentUrl} onChange={e => setAttachmentUrl(e.target.value)} placeholder="Attachment URL" className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm" />
+                  <Input value={prUrl} onChange={e => setPrUrl(e.target.value)} placeholder="PR URL" />
+                  <Input value={demoUrl} onChange={e => setDemoUrl(e.target.value)} placeholder="Demo URL" />
+                  <Input value={attachmentUrl} onChange={e => setAttachmentUrl(e.target.value)} placeholder="Attachment URL" />
                   <Button
                     size="sm"
                     className="w-full"
@@ -389,18 +412,19 @@ export default function TaskDetail() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[var(--color-on-surface-variant)]">Points to award</label>
-                    <input
+                    <Input
+                      label="Points to award"
                       type="number"
                       min="0"
+                      max="10000"
                       value={points}
                       onChange={e => setPoints(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[var(--color-on-surface-variant)]">Customer review</label>
-                    <textarea
+                    <Textarea
+                      label="Customer review"
+                      placeholder="Share what went well, delivery quality, communication, and any useful feedback."
                       value={reviewComment}
                       onChange={e => setReviewComment(e.target.value)}
                       maxLength={1000}
