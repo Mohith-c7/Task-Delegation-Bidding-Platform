@@ -9,10 +9,10 @@ type User struct {
 	Name          string     `json:"name"`
 	Email         string     `json:"email"`
 	PasswordHash  string     `json:"-"` // Never send password hash in JSON
-	Bio           string     `json:"bio,omitempty"`
-	AvatarURL     string     `json:"avatar_url,omitempty"`
+	Bio           *string    `json:"bio,omitempty"`
+	AvatarURL     *string    `json:"avatar_url,omitempty"`
 	Skills        []string   `json:"skills"`
-	ResumeURL     string     `json:"resume_url,omitempty"`
+	ResumeURL     *string    `json:"resume_url,omitempty"`
 	EmailVerified bool       `json:"email_verified"`
 	VerifiedAt    *time.Time `json:"verified_at,omitempty"`
 	TotalPoints   int        `json:"total_points"`
@@ -112,10 +112,10 @@ type AuthResponse struct {
 
 type UpdateProfileRequest struct {
 	Name      string   `json:"name" binding:"omitempty,min=2,max=255"`
-	AvatarURL string   `json:"avatar_url" binding:"omitempty,url"`
-	Bio       string   `json:"bio" binding:"omitempty,max=500"`
+	AvatarURL *string  `json:"avatar_url" binding:"omitempty,url"`
+	Bio       *string  `json:"bio" binding:"omitempty,max=500"`
 	Skills    []string `json:"skills"`
-	ResumeURL string   `json:"resume_url" binding:"omitempty,url"`
+	ResumeURL *string  `json:"resume_url" binding:"omitempty,url"`
 }
 
 type ChangePasswordRequest struct {
@@ -138,7 +138,7 @@ type AvailabilityEntry struct {
 	StartAt   time.Time `json:"start_at"`
 	EndAt     time.Time `json:"end_at"`
 	Status    string    `json:"status"`
-	Note      string    `json:"note"`
+	Note      *string   `json:"note,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

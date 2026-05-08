@@ -330,10 +330,19 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID string, req *mod
 	if req.Name != "" {
 		user.Name = strings.TrimSpace(req.Name)
 	}
-	user.AvatarURL = strings.TrimSpace(req.AvatarURL)
-	user.Bio = strings.TrimSpace(req.Bio)
+	if req.AvatarURL != nil {
+		trimmed := strings.TrimSpace(*req.AvatarURL)
+		user.AvatarURL = &trimmed
+	}
+	if req.Bio != nil {
+		trimmed := strings.TrimSpace(*req.Bio)
+		user.Bio = &trimmed
+	}
 	user.Skills = req.Skills
-	user.ResumeURL = strings.TrimSpace(req.ResumeURL)
+	if req.ResumeURL != nil {
+		trimmed := strings.TrimSpace(*req.ResumeURL)
+		user.ResumeURL = &trimmed
+	}
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
