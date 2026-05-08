@@ -11,7 +11,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -143,18 +142,17 @@ func main() {
 		})
 	})
 
-	router.Use(middleware.RateLimit(redisClient, "ip", 100, time.Minute))
 
-	// Stricter rate limit on auth endpoints
-	authRateLimit := middleware.RateLimit(redisClient, "ip", 10, time.Minute)
+	// NOTE: Rate limiting disabled for demo purposes
+	// router.Use(middleware.RateLimit(redisClient, "ip", 100, time.Minute))
 
 	// API routes
 	v1 := router.Group("/api/v1")
 	{
 		// Public routes
 		auth := v1.Group("/auth")
-		auth.Use(authRateLimit)
 		{
+
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/refresh", authHandler.RefreshToken)
